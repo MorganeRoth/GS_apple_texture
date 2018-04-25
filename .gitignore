@@ -1,4 +1,14 @@
+.DS_Store
+._.DS_Store
 .Rproj.user
 .Rhistory
 .RData
 .Ruserdata
+
+/*.html
+/*.pdf
+
+secret/**
+temp/
+
+!.keep
