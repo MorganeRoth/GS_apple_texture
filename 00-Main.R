@@ -5,7 +5,8 @@ linked_path <- "../../mnt/path/on/network/share/"
 source("01-Init.R")
 
 # Declare necessary packages
-nec_pkgs <- c()
+pkgs_cran <- c("DBI")
+pkgs_bioc <- c("ropls", "xcms")
 
 # Load packages
 source("02-LoadPkgs.R")
