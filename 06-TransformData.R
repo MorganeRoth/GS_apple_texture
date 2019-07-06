@@ -1,4 +1,4 @@
-cat("Redesigning data...\n")
+cat("Transforming data...\n")
 
 # Your code goes here
 
@@ -8,4 +8,4 @@ rm()
 # Garbage collection
 gc()
 
-cat("Data redesigned!\n")
+cat("Data transformed!\n")

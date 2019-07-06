@@ -1,8 +1,8 @@
-cat("Cleaning data...\n")
+cat("Modelling data...\n")
 
 # Your code goes here
 
 # Purge obsolete variables
 rm()
 
-cat("Data cleaned!\n")
+cat("Data modelled!\n")
