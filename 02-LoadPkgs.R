@@ -12,8 +12,13 @@ if (length(req_pkgs_cran) > 0) {
 # Install required packages from Bioconductor
 req_pkgs_bioc <- setdiff(pkgs_bioc, inst_pkgs)
 if (length(req_pkgs_bioc) > 0) {
-  source("https://bioconductor.org/biocLite.R")
-  biocLite(req_pkgs_bioc)
+  if (getRversion() < "3.5") {
+    source("https://bioconductor.org/biocLite.R")
+    BiocInstaller::biocLite(req_pkgs_bioc)
+  } else {
+    install.packages("BiocManager")
+    BiocManager::install(req_pkgs_bioc, update = FALSE)
+  }
 }
 
 # Load necessary packages
