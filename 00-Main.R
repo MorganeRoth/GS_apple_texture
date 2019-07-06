@@ -5,8 +5,8 @@ linked_path <- "../../mnt/path/on/file/share/"
 source("01-Init.R")
 
 # Declare necessary packages
-pkgs_cran <- c("DBI")
-pkgs_bioc <- c("ropls", "xcms")
+pkgs_cran <- c("config")
+pkgs_bioc <- c()
 
 # Load packages
 source("02-LoadPkgs.R")
@@ -14,7 +14,7 @@ source("02-LoadPkgs.R")
 source("03-LoadFunc.R")
 
 # Configuration
-
+config <- config::get()
 
 # Wrangle
 ## Import

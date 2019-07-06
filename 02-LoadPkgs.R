@@ -17,7 +17,8 @@ if (length(req_pkgs_bioc) > 0) {
 }
 
 # Load necessary packages
-shh <- lapply(c(pkgs_cran, pkgs_bioc), library, character.only = TRUE)
+shh <- lapply(c(setdiff(pkgs_cran, "config"), pkgs_bioc), library,
+              character.only = TRUE)
 
 # Purge obsolete variables
 rm(inst_pkgs, req_pkgs_cran, req_pkgs_bioc, shh)

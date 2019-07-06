@@ -5,6 +5,7 @@
 .RData
 .Ruserdata
 
+config.yml
 /*.html
 /*.pdf
 

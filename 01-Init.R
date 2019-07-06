@@ -3,6 +3,11 @@ cat("Initialising...\n")
 # Delete all objects
 rm(list = setdiff(ls(), "linked_path"))
 
+# Copy sample configuration file
+if (!file.exists("config.yml")) {
+  file.copy("config.yml.sample", "config.yml")
+}
+
 # Get user
 user <- Sys.getenv("USER")
 
