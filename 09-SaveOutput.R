@@ -1,7 +1,7 @@
-cat("Write to DB...\n")
+cat("Saving output...\n")
 
 # Create subfolder with reformatted date and time.
-path <- paste0(odir, ts_done, "/")
+path <- file.path(odir, format(Sys.time(), "%Y-%m-%d_%H%M%S"))
 dir.create(path, showWarnings = FALSE)
 
 # Your code goes here
@@ -9,4 +9,4 @@ dir.create(path, showWarnings = FALSE)
 # Purge obsolete variables
 rm(path)
 
-cat("Written to DB!\n")
+cat("Output saved!\n")

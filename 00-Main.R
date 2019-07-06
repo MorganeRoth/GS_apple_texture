@@ -1,12 +1,12 @@
-# Linked path on network share
-linked_path <- "../../mnt/path/on/network/share/"
+# Linked path on file share
+linked_path <- "../../mnt/path/on/file/share/"
 
 # Initialise
 source("01-Init.R")
 
 # Declare necessary packages
-pkgs_cran <- c("DBI")
-pkgs_bioc <- c("ropls", "xcms")
+pkgs_cran <- c("config")
+pkgs_bioc <- c()
 
 # Load packages
 source("02-LoadPkgs.R")
@@ -14,17 +14,24 @@ source("02-LoadPkgs.R")
 source("03-LoadFunc.R")
 
 # Configuration
+config <- config::get()
 
+# Wrangle
+## Import
+source("04-ImportData.R")
+## Tidy
+source("05-TidyData.R")
 
-# Load data
-source("04-LoadData.R")
-# Clean data
-source("05-CleanData.R")
-# Redesign Data
-source("06-RedesignData.R")
-# Generate Output
-source("07-GenerateOutput.R")
-# Save Output
-source("08-SaveOutput.R")
-# Write to DB
-# source("09-WriteToDB.R")
+# Wrangle/Explore
+## Transform
+source("06-TransformData.R")
+
+# Explore
+## Vizualise
+source("07-VisualiseData.R")
+## Model
+source("08-ModelData.R")
+
+# Communicate
+## Save Output
+source("09-SaveOutput.R")

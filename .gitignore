@@ -5,9 +5,11 @@
 .RData
 .Ruserdata
 
+config.yml
 /*.html
 /*.pdf
 
+lib/**
 secret/**
 temp/
 

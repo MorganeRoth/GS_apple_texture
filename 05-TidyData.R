@@ -1,8 +1,8 @@
-cat("Loading data...\n")
+cat("Tidying data...\n")
 
 # Your code goes here
 
 # Purge obsolete variables
 rm()
 
-cat("Data loaded!\n")
+cat("Data tidied!\n")
