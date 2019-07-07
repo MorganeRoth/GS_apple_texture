@@ -3,7 +3,7 @@ cat("Initialising...\n")
 # Delete all objects
 rm(list = setdiff(ls(), "linked_path"))
 
-# Copy sample configuration file
+# Copy sample configuration file if it doesn't exist
 if (!file.exists("config.yml")) {
   file.copy("config.yml.sample", "config.yml")
 }

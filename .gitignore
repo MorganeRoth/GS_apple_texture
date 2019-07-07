@@ -9,7 +9,7 @@ config.yml
 /*.html
 /*.pdf
 
-lib/**
+lib/
 secret/**
 temp/
 
