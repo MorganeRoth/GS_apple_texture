@@ -6,9 +6,11 @@
 .Ruserdata
 
 config.yml
-/*.html
-/*.pdf
+*.html
+*.pdf
 
+**/input/
+**/output/
 lib/
 secret/**
 temp/
