@@ -1,5 +1,7 @@
 # Linked path on file share
-linked_path <- "../../mnt/path/on/file/share/"
+linked_path <- "~/mnt/path/on/file/share/"
+# For local analyses use
+# linked_path <- "."
 
 # Initialise
 source("01-Init.R")

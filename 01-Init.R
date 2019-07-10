@@ -9,7 +9,11 @@ if (!file.exists("config.yml")) {
 }
 
 # Get user
-user <- Sys.getenv("USER")
+if (.Platform$OS.type == "windows") {
+  user <- Sys.getenv("USERNAME")
+} else {
+  user <- Sys.getenv("USER")
+}
 
 # Define paths to use
 idir <- file.path(linked_path, "input")
