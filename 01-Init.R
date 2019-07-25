@@ -16,8 +16,8 @@ if (.Platform$OS.type == "windows") {
 }
 
 # Define paths to use
-idir <- file.path(linked_path, "input")
-odir <- file.path(linked_path, "output", user)
+idir <- file.path(linked_path, "R_input")
+odir <- file.path(linked_path, "R_output")
 
 # Create odir if not already existent
 dir.create(odir, showWarnings = FALSE, recursive = TRUE)
@@ -27,6 +27,10 @@ rmdirs <- dir(odir)
 # if (length(rmdirs) > 0) {
 #   unlink(file.path(odir, rmdirs), recursive = TRUE)
 # }
+
+# set seed for reproducible results
+
+set.seed(1234)
 
 # Purge obsolete variables
 rm(user, rmdirs)

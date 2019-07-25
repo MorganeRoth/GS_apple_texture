@@ -1,5 +1,5 @@
 # Linked path on file share
-linked_path <- "~/mnt/path/on/file/share/"
+linked_path <- "~/mnt/agroscope_os/2/2/6/1/1/4/6021/GenSel_Costa_collab"
 # For local analyses use
 # linked_path <- "."
 
@@ -7,7 +7,9 @@ linked_path <- "~/mnt/path/on/file/share/"
 source("01-Init.R")
 
 # Declare necessary packages
-pkgs_cran <- c("config")
+pkgs_cran <- c("config", "magrittr", "lme4","doBy", "snpStats", "snpReady", "readxl","rrBLUP","reshape2",
+               "ggplot2","parallel","dplyr","gplots", "data.table", "corrplot","FactoMineR","factoextra","missMDA", "purr",
+               "MM4LMM", "nnet", "impute", "snpStats")
 pkgs_bioc <- c()
 
 # Load packages
@@ -21,12 +23,12 @@ config <- config::get()
 # Wrangle
 ## Import
 source("04-ImportData.R")
-## Tidy
-source("05-TidyData.R")
-
-# Wrangle/Explore
-## Transform
-source("06-TransformData.R")
+## Model phenos and genos for downstream analyses
+source("05-ModelPhenos.R")
+source("06-ModelGenos.R.R")
+# source("07-VisualiseData.R")
+## Do analysis of variance to assess genotypic contribution to trait
+source("08-VarianceAnalysis.R")
 
 # Explore
 ## Vizualise
