@@ -130,15 +130,20 @@ for (Y in levels(phenos_col$Year)) {
     }
   }    
 }
+write.table(accuracy, file=paste0(odir, "/predictions/COLLtoCOLL/COLLtoCOLL_per_year_5Fold_", nreps, "_reps.txt"),sep="\t", quote=F)
 
 
-png(file=paste0(odir, "/predictions/COLLtoCOLL/COLLtoCOLL_per_year_5Fold_", nreps, "_reps.png"), height=500, width=800)
-ggplot(accuracy,aes( y=accuracy, x=Year))+
+accuracy<-read.table(paste0(odir, "/predictions/COLLtoCOLL/COLLtoCOLL_per_year_5Fold_", nreps, "_reps.png"), sep="\t", h=T)
+
+
+png(file=paste0(odir, "/predictions/COLLtoCOLL/COLLtoCOLL_per_year_5Fold_", nreps, "_reps.png"), height=500, width=1000)
+
+ggplot(accuracy,aes( y=accuracy, x=trait))+
   geom_boxplot()+
-  facet_grid(~trait) +
+  facet_grid(~Year) +
   labs(x="Trait", title="Predictions rrBLUP 100 5-fold", y="Predictive ability")+
   theme(axis.text.x=element_text(angle = 45,  hjust = 1))+
-  scale_y_continuous(limits = c(0, 1))
+  scale_y_continuous(limits = c(-0.5, 1))
 dev.off()
 
 
