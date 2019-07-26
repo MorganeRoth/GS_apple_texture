@@ -32,7 +32,7 @@ SnpSummary <- lapply(1:NbMarker, function(snp){
 InfSnp <- map_lgl(SnpSummary,~ ((.x[1]==NbID) | (.x[3]==NbID))  ) %>% 
   reduce(c)
 cat("How many uninformative SNPs (TRUE)?")
-table(InfSnp) 
+# table(InfSnp) 
 
 ## Get probs
 Probs <- SnpSummary %>% map(., ~ .x/NbID) %>% reduce(rbind)
@@ -46,7 +46,7 @@ Coding.Add <- Probs %>%
   mutate(hAA = AB+2*BB, hAB = -(1-AB-2*BB), hBB = -(2-AB-2*BB)) %>% 
   select(hAA,hAB,hBB)
 
-head(Coding.Add)
+# head(Coding.Add)
 ## replace genotypes by their probabilities in genos_round
 Geno.Add <- sapply(1:NbMarker, function(snp){
   New <- rep(Coding.Add[['hAA']][snp],NbID)
@@ -63,7 +63,7 @@ Coding.Dom <- Probs %>%
          hAB = 4*AA*BB/Den, 
          hBB = 2*AA*AB/Den) %>% 
   select(hAA,hAB,hBB)
-head(Coding.Dom)
+# head(Coding.Dom)
 Geno.Dom <- sapply(1:NbMarker, function(snp){
   New <- rep(Coding.Dom[['hAA']][snp],NbID)
   New[as.character(genos_round[,snp])=='0'] <- Coding.Dom[['hAB']][snp]
@@ -125,6 +125,10 @@ png(file=paste0(odir, "/genos_modelled/Ka_Amat.png"), height=1500, width=1500)
 heatmap(A, symm=T) %>% print
 dev.off()
 write.table(A, file=paste0(odir, "/genos_modelled/Ka_Amat.txt"), row.names=T, quote=F, sep="\t")
+
+## Means relatedness between families and collection
+
+cat("TO DO: mean relatedness incorporate\n")
 
 ## Calculate inbreeding in each genotype: level of homozygosity (or count heterozygosity, easier)
 ## For this just make a mean of the dominance coding for each individual

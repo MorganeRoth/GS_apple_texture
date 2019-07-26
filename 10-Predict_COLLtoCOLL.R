@@ -38,12 +38,12 @@ for (trait in traits) {
       WhichTS <- ids_shuffle[-which(folds==i) ]
       res <- mixed.solve(y=phenos[WhichTS,trait],Z=genos_pred[WhichTS,])
       Y_VS_pred<- as.vector(genos_pred[WhichVS,] %*% as.matrix(res$u))
-      fold_acc<-append(fold_acc,cor(phenos[WhichVS, trait], Y_VS_pred, use="na.or.complete"))
+      fold_acc<-append(fold_acc,cor(phenos[WhichVS, trait], Y_VS_pred))
       rm(WhichVS, WhichTS)
     }
     count=count+1
     accuracy[count,"accuracy"]<-mean(fold_acc)
-    # print(c(trait, rep, i, count))
+    print(mean(fold_acc))
   }
 }    
 
@@ -143,7 +143,7 @@ png(file=paste0(odir, "/predictions/COLLtoCOLL/COLLtoCOLL_per_year_5Fold_", nrep
 ggplot(accuracy,aes( y=accuracy, x=trait))+
   geom_boxplot()+
   facet_grid(~Year) +
-  labs(x="Trait", title="Predictions rrBLUP 100 5-fold", y="Predictive ability")+
+  labs(x="Trait", title="Predictions rrBLUP 100 CVs 5-fold", y="Predictive ability")+
   theme(axis.text.x=element_text(angle = 45,  hjust = 1))+
   scale_y_continuous(limits = c(-0.5, 1))
 dev.off()

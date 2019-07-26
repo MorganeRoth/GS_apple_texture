@@ -17,8 +17,11 @@ lapply(traits, function(i) print(c(i,shapiro.test(phenos[[i]])$p.value))) %>% un
 
 # Genos
 
-genos_add<-fread(paste0(idir, "/all_genotypes_coll_progenies_additive.txt")) 
+cat("!!! Need to correct genos_add file because of early imputation\n")
 
+genos_add<-fread(paste0(idir, "/all_genotypes_coll_progenies_additive.txt")) 
+genos_round<-apply(genos_ready,2, function(x) as.numeric(x) %>% round(., digits=0))
+apply(genos_add[,1:20], 2, function(x) as.factor(x) %>%summary) ## now entire values only
 new_names<-read.table(paste0(idir, "/new_names_genos_4progenies.txt"), header=T) 
 IDs<-merge(genos_add[,1], new_names, by.x="V1", by.y="Geno_name",sort=F )[,2] ## keep order of genos_add
 genos_add<-genos_add[,-1]
@@ -37,7 +40,8 @@ rownames(genos_fil)<-IDs$New_geno_name
 # rownames(genos_add)[132]<-"Magr"
 
 ## filter data
-
+idsum<-row.summary(genos_fil)
+hist(idsum$Call.rate)
 snpsum<-col.summary(genos_fil)
 summary(snpsum)
 hwe=snpsum$z.HWE
