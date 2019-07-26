@@ -107,10 +107,12 @@ for (Y in levels(phenos_col$Year)) {
   for (trait in traits) {
     NonMissing<-which(!(is.na(data[,trait]))) 
     pheno<-data[NonMissing,] %>% droplevels 
-    ids<-levels(pheno$Name)
     pheno<- aggregate(x=pheno[,trait],by=list(pheno$Name),FUN= mean)
     rownames(pheno)<-pheno$Group.1
-    WhichCOL<-which(rownames(genos_pred) %in% rownames(pheno))
+    ids<-intersect(rownames(genos_pred), rownames(pheno)) %>% sort
+    pheno<-pheno[ids,]
+    WhichCOL<-which(rownames(genos_pred) %in% ids)
+    summary(rownames(genos_pred)[WhichCOL] == rownames(pheno))
     for (rep in 1:nreps) {
       folds <- cut(seq(1,length(WhichCOL)),breaks=5,labels=FALSE) ## create folds
       ids_shuffle<-sample(WhichCOL) ## randomize ids
