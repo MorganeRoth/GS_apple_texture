@@ -53,7 +53,7 @@ mypred<-function(nreps, prop){
   }
   saveRDS(accuracy, file = paste0(odir, "/predictions/COLLtoFAMs_prop/all_traits_pred_progenies_",round(prop, digits = 2),"_prop", nreps, "_reps.rds"))
 }
-mypred(100,1/3)
+mypred(100,0.3)
 
 # for (trait in traits) {
 #   for (fam in families) {

@@ -43,7 +43,7 @@ for ( K in list(K.Add, K.Dom, K.AA, K.AD, K.DD)) { print(dim(K))}
 ## reorder ids
 ids=sort(ids)
 ## Distance between individuals
-Dist0<-hetero[ids,]
+Dist0<-data.frame(names=ids, Het=hetero[ids,])
 Dist<-merge(phenos_raw, Dist0, by.x="Name", by.y="names")[,"Het"]
 # For using MM4LMM we need to prepare variance and incidence matrices that will be filtered for missing values afterwards
 
@@ -172,7 +172,8 @@ write.table(res, file=paste0(odir, "/variance_analysis/results_var_decomp_all_mo
 ## Find best model for each trait
 # res<-read.table(paste0(odir, "/variance_analysis/results_var_decomp_all_models.txt"), h=T)
 
-head(res)
+summary(res)
+res$LogLik<-as.numeric(res$LogLik)
 max_lk<-lapply(traits, function(x) {
   data<-res[res$trait==x, ]
   mymin<-data[which(data$LogLik == max(data$LogLik)),"model"] %>% as.character

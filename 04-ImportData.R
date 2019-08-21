@@ -17,22 +17,21 @@ lapply(traits, function(i) print(c(i,shapiro.test(phenos[[i]])$p.value))) %>% un
 
 # Genos
 
-cat("!!! Need to correct genos_add file because of early imputation\n")
-
-genos_add<-fread(paste0(idir, "/all_genotypes_coll_progenies_additive.txt")) 
-genos_round<-apply(genos_ready,2, function(x) as.numeric(x) %>% round(., digits=0))
-apply(genos_add[,1:20], 2, function(x) as.factor(x) %>%summary) ## now entire values only
+genos_add<-fread(paste0(idir, "/all_genotypes_coll_progenies_additive_no_imputation.txt")) 
+genos_add[1:5,1:5]
 new_names<-read.table(paste0(idir, "/new_names_genos_4progenies.txt"), header=T) 
-IDs<-merge(genos_add[,1], new_names, by.x="V1", by.y="Geno_name",sort=F )[,2] ## keep order of genos_add
+IDs<-merge(genos_add[,1], new_names, by.x="Name_new", by.y="Geno_name",sort=F )[,2] ## keep order of genos_add
 genos_add<-genos_add[,-1]
 rownames(genos_add)<-IDs$V1
 summary(genos_add[,1:10])
 genos_add<-as.matrix(genos_add)
+genos_add[which(is.na(genos_add))]
 ## reshape for snpStats - recode 0,1,2 and NA are 9
 genos_fil<-genos_add
-genos_fil[genos_fil==NA]<-8
+genos_fil[which(is.na(genos_fil))]<-8
 genos_fil<- genos_fil + 1
 genos_fil[1:5,1:5]
+table(genos_fil)
 genos_fil<-new("SnpMatrix", as.matrix(genos_fil) )
 rownames(genos_fil)<-IDs$New_geno_name
 # if needed: change IDs
@@ -51,11 +50,10 @@ hist(snpsum$Call.rate)
 hist(snpsum$z.HWE)
 ## filter for these values of Z 
 snpsel=snpsum[which(snpsum$Call.rate>0.20 & snpsum$MAF>0.05 ),] ## do not filter on HWE
-nrow(snpsum)-nrow(snpsel)## filtering out 3020 Mks
+nrow(snpsum)-nrow(snpsel)## filtering out 2263 Mks
 idsum<-row.summary(genos_fil)
 summary(idsum)
 
-## filters out only 1450 SNPs
 # Filter on MAF and call rate
 snpsel=rownames(snpsel)
 genos_fil<-genos_add[, which(colnames(genos_add) %in% snpsel)]

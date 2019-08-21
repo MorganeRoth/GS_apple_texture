@@ -24,25 +24,57 @@ summary(rownames(genos_pred)[WhichCOL] == rownames(phenos)[WhichCOL]) ## 232 wit
 traits=colnames(phenos)
 accuracy<-data.frame(FAM=rep(families, length(traits)), trait=lapply(traits, function(x) rep(x, NbFAM)) %>% unlist,accuracy=NA)
 
-
 for (trait in traits) {
   for (fam in families) {
     WhichVS<-c(1:NbID)[grep(fam, ids)]
     res <- mixed.solve(y=phenos[WhichCOL,trait],Z=genos_pred[WhichCOL,])
     Y_VS_pred<- as.vector(genos_pred[WhichVS,] %*% as.matrix(res$u))
-    accuracy[which(accuracy$FAM==fam & accuracy$trait==trait), ] <- c(fam, trait, cor(phenos[WhichVS, trait], Y_VS_pred, use="na.or.complete"))
+    acc<-cor(phenos[WhichVS, trait], Y_VS_pred, use="na.or.complete")
+    print(c(trait, fam, acc))
+    accuracy[which(accuracy$FAM==fam & accuracy$trait==trait), ] <- c(fam, trait, acc)
     rm(res, WhichVS, Y_VS_pred)
   }
 }
 
 write.table(accuracy, file=paste0(odir, "/predictions/COLLtoFAMs/rrBLUPs.txt"), quote=F, sep="\t")
-# accuracy<-read.table(paste0(odir, "/predictions/COLLtoFAMs/rrBLUPs.txt"), h=T)
 
-png(file=paste0(odir, "/predictions/COLLtoFAMs/COLLtoFAM.png"), height=500, width=1000)
+## try with clusters (as fix effect)
+head(clusters)
+clusters<-data.frame(Cluster=as.factor(clusters[,"Cluster"]), row.names = clusters[,"Name"])
+clusters<-clusters[rownames(genos_pred)[WhichCOL],]
+rownames(clusters)<-rownames(genos_pred)[WhichCOL]
+clusters<-class.ind(clusters)
+
+accuracy<-data.frame(FAM=rep(families, length(traits)), trait=lapply(traits, function(x) rep(x, NbFAM)) %>% unlist,accuracy=NA)
+
+cluster_fams$cluster<-factor(cluster_fams$cluster, levels=1:5)
+rownames(cluster_fams)<-cluster_fams$Name
+
+for (trait in traits) {
+  for (fam in families) {
+    WhichVS<-c(1:NbID)[grep(fam, ids)]
+    cluster_FAM<- cluster_fams[ids[grep(fam,ids)], "cluster" ] %>% class.ind
+    print(table(cluster_fams[ids[grep(fam,ids)], "cluster" ] ))
+    res <- mixed.solve(y=phenos[WhichCOL,trait],Z=genos_pred[WhichCOL,], X=clusters) ## cluster as fix effect
+    Y_VS_pred<- as.vector(genos_pred[WhichVS,] %*% as.matrix(res$u) + cluster_FAM %*% res$beta) ## add effect of cluster
+    acc<-cor(phenos[WhichVS, trait], Y_VS_pred, use="na.or.complete")
+    print(c(trait, fam, acc))
+    accuracy[which(accuracy$FAM==fam & accuracy$trait==trait), ] <- c(fam, trait, acc)
+    rm(res, WhichVS, Y_VS_pred)
+  }
+}
+
+write.table(accuracy, file=paste0(odir, "/predictions/COLLtoFAMs/rrBLUPs_clusters_fix.txt"), quote=F, sep="\t")
+
+accuracy$accuracy<- accuracy$accuracy %>% as.character %>% as.numeric
+by(accuracy, accuracy$FAM, summary)
+
+
+png(file=paste0(odir, "/predictions/COLLtoFAMs/COLLtoFAM_with_clusters.png"), height=500, width=1000)
 ggplot(accuracy,aes( y=accuracy, x=trait))+
   geom_boxplot()+
   facet_grid(~FAM)+
-  labs(x="Trait", title="Predictions rrBLUP COLL to FAMs", y="Predictive ability")+
+  labs(x="Trait", title="Predictions rrBLUP COLL to FAMs with 5 clusters", y="Predictive ability")+
   theme(axis.text.x=element_text(angle = 45,  hjust = 1))+
   scale_y_continuous(limits = c(-0.5, 1))
 dev.off()

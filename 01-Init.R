@@ -17,7 +17,7 @@ if (.Platform$OS.type == "windows") {
 
 # Define paths to use
 idir <- file.path(linked_path, "R_input")
-odir <- file.path(linked_path, "R_output")
+odir <- file.path(linked_path, "R_output/20190816")
 
 # Create odir if not already existent
 dir.create(odir, showWarnings = FALSE, recursive = TRUE)

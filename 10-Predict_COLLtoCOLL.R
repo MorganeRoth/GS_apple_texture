@@ -19,7 +19,7 @@ nrow(phenos) == nrow(genos_pred)
 families<-c("FjDe", "FuPi", "FjPL", "GDFj", "GaPi", "GaPL")
 NbFAM<-length(families)
 WhichCOL<-c(1:NbID)[-c(lapply(families, function(x) grep(x, ids) ) %>% unlist)]
-summary(rownames(genos_pred)[WhichCOL] == rownames(phenos)[WhichCOL]) ## 232 with same names
+summary(rownames(genos_pred)[WhichCOL] == rownames(phenos)[WhichCOL]) ## 215 with same names
 
 traits=colnames(phenos)
 
@@ -28,7 +28,7 @@ nreps=100
 accuracy<-data.frame(Rep=rep(1:nreps, length(traits)), trait=lapply(traits, function(x) rep(x, nreps)) %>% unlist,accuracy=NA)
 count=0
 for (trait in traits) {
-  for (rep in 1:nreps) {
+  for (REP in 1:nREPs) {
     folds <- cut(seq(1,length(WhichCOL)),breaks=5,labels=FALSE) ## create folds
     ids_shuffle<-sample(WhichCOL) ## randomize ids
     fold_acc<-c()
@@ -47,8 +47,21 @@ for (trait in traits) {
   }
 }    
 
+
 write.table(accuracy, file=paste0(odir, "/predictions/COLLtoCOLL/accuracy_5fold_rrBLUP.txt"), quote=F, sep="\t")
-head(accuracy)
+
+## architecture of traits
+png(file=paste0(odir, "/predictions/COLLtoCOLL/architecture_traits.png"), width=1500, height=600)
+par(mfrow=c(3,5))
+mynorm<-function(x) (x - min(x))/(max(x) - min(x))
+for (trait in traits) {
+      #Segement your data by fold using the which() function 
+      data<- mynorm(phenos[,trait])
+      res <- mixed.solve(y=data,Z=genos_pred)
+      print(hist(res$u, main=paste0(trait, "\n", "(sd:", round(sd(res$u), digits=4),")"),
+                 xlab="Effect of marker", nclass=20))
+} 
+dev.off()
 # plot
 accuracy<-read.table(paste0(odir, "/predictions/COLLtoCOLL/accuracy_5fold_rrBLUP.txt"))
 

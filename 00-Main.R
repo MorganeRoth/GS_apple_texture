@@ -9,8 +9,8 @@ source("01-Init.R")
 # Declare necessary packages
 pkgs_cran <- c("config", "magrittr", "lme4","doBy", "snpStats", "snpReady", "readxl","rrBLUP","reshape2",
                "ggplot2","parallel","dplyr","gplots", "data.table", "corrplot","FactoMineR","factoextra","missMDA", "purrr",
-               "MM4LMM", "nnet", "impute", "snpStats")
-pkgs_bioc <- c()
+               "MM4LMM", "nnet", "impute", "snpStats", "robustHD", "adegenet", "agridat")
+pkgs_bioc <- c("chopsticks")
 
 # Load packages
 source("02-LoadPkgs.R")

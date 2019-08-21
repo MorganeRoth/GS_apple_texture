@@ -3,6 +3,10 @@
 ########### AA, AB, BB to -1 0 1 as in collection ##
 ####################################################
 
+# This code and its output are from  "/home/evdad.admin.ch/a80848168/projects/GenSel_Italy/Genos_and_kinships/Recoding_SNPs"
+# Copied here in the pipeline just as information
+
+# START HERE
 # Merge all progeny files
 # Update SNP names in progenies file and in collection file
 # Create a consensus coding for AA, BB, AB coding for parents
@@ -39,7 +43,7 @@ coll<-genos_101$M.clean
 
 
 families<-c("FjDe", "FjGD", "FjPi", "FjPL", "GaPi", "GaPL")
-path_BP<-"~/mnt/agroscope_os/2/2/6/1/1/4/6021/GenSel_Costa_collab/Raw_data/Genotypes/Training_pop/Genotypes/Breeding_pop/"
+path_BP<-"~/mnt/agroscope_os/2/2/6/1/1/4/6021/GenSel_Costa_collab/Raw_data/Genotypes/Breeding_pop/"
 fams<-lapply(families, function(x) assign(x,read_xlsx(paste0(path_BP,"All_SNP_",x, ".xlsx" ),sheet=1) ))
 names(fams)<-families
 lapply(families, function(x) fams[[x]][1:5,1:5])### in the 2 first columns we have genotypes of the parents
@@ -221,7 +225,7 @@ for (i in 1:dim(consens)[1]){
   }
 }
 
-counter ## 30 genes with ambiguous coding
+counter ## 1229 genes with ambiguous coding
 write.table(consens, file="consensus_file_parents_progenies.txt", sep="\t", quote=F)
 ### Now we can just keep the recoding
 ### quality check
@@ -273,8 +277,8 @@ head(res)
 
 write.table(res, file="summary_markers_progenies.txt", sep="\t", quote=F)  
 
-write.table(progenies_add, file="progenies_coding_additive.txt", sep="\t", quote=F)
-progenies_add<-read.table("progenies_coding_additive.txt", sep="\t", h=T)
+write.table(progenies_add, file="progenies_coding_additive_no_imputation.txt", sep="\t", quote=F)
+progenies_add<-read.table("progenies_coding_additive_no_imputation.txt", sep="\t", h=T)
 
 ### concatenate with collection
 tcoll<-t(coll) %>% as.data.frame()
@@ -289,7 +293,7 @@ all<-merge(tcoll, progenies_add, by="Name_new")
 ## Last step is to remove outcrossers and additional columns for parents
 
 # remove outcrossers
-out<-read_xlsx("~/mnt/agroscope_os/2/2/6/1/1/4/1055/GenSel_Costa_collab/Raw_data/Genotypes/Breeding_pop/outcross.xlsx", sheet=1,col_names=T)
+out<-read_xlsx("~/mnt/agroscope_os/2/2/6/1/1/4/6021/GenSel_Costa_collab/Raw_data/Genotypes/Breeding_pop/outcross.xlsx", sheet=1,col_names=T)
 out$ID_modified_Morgane
 to_remove=which(colnames(all) %in% out$ID_modified_Morgane ) ## 7 invidividuals
 all<-all[,-c(to_remove)]
@@ -306,8 +310,8 @@ all<-all[-whichPA, ]
 rownames(all)
 dim(all)
 
-write.table(all, "all_genotypes_coll_progenies_additive.txt", sep="\t", row.names=T, quote=F)
+write.table(all, "all_genotypes_coll_progenies_additive_no_imputation.txt", sep="\t", row.names=T, quote=F)
 
 ## check that the file is properly saved
-dd<-read.table("./all_genotypes_coll_progenies_additive.txt", h=T, sep="\t")
+dd<-read.table("./all_genotypes_coll_progenies_additive_no_imputation.txt", h=T, sep="\t")
 dd[1:5,1:5]
