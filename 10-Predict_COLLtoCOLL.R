@@ -24,7 +24,7 @@ summary(rownames(genos_pred)[WhichCOL] == rownames(phenos)[WhichCOL]) ## 215 wit
 traits=colnames(phenos)
 
 ## help on 5-fold design: https://stats.stackexchange.com/questions/61090/how-to-split-a-data-set-to-do-10-fold-cross-validation
-nreps=100
+nREPs=100
 accuracy<-data.frame(Rep=rep(1:nreps, length(traits)), trait=lapply(traits, function(x) rep(x, nreps)) %>% unlist,accuracy=NA)
 count=0
 for (trait in traits) {
@@ -50,6 +50,49 @@ for (trait in traits) {
 
 write.table(accuracy, file=paste0(odir, "/predictions/COLLtoCOLL/accuracy_5fold_rrBLUP.txt"), quote=F, sep="\t")
 
+# boxplot
+accuracy<-read.table(paste0(odir, "/predictions/COLLtoCOLL/accuracy_5fold_rrBLUP.txt"))
+
+png(file=paste0(odir, "/predictions/COLLtoCOLL/COLLtoCOLL_5fold_", nreps, "_reps.png"), height=500, width=800)
+ggplot(accuracy,aes( y=accuracy, x=trait))+
+  geom_boxplot()+
+  labs(x="Trait", title="Predictions rrBLUP 100 CVs 5-fold", y="Predictive ability")+
+  theme(axis.text.x=element_text(angle = 45,  hjust = 1))+ 
+  scale_y_continuous(limits = c(0, 1))
+dev.off()
+
+## add cluster effect
+## try with clusters (as fix effect)
+head(clusters)
+clusters$Cluster<-as.factor(clusters$Cluster)
+clusters.mat<-class.ind(clusters$Cluster)
+rownames(clusters.mat)<-clusters$Name
+
+accuracy<-data.frame(Rep=rep(1:nREPs, length(traits)), trait=lapply(traits, function(x) rep(x, nREPs)) %>% unlist,accuracy=NA)
+count=0
+
+for (trait in traits) {
+  for (REP in 1:nREPs) {
+    folds <- cut(seq(1,length(WhichCOL)),breaks=5,labels=FALSE) ## create folds
+    ids_shuffle<-sample(WhichCOL) ## randomize ids
+    fold_acc<-c()
+    for(i in 1:5){
+      #Segement your data by fold using the which() function 
+      WhichVS <- ids_shuffle[which(folds==i) ]
+      WhichTS <- ids_shuffle[-which(folds==i) ]
+      res <- mixed.solve(y=phenos[WhichTS,trait],Z=genos_pred[WhichTS,], X=clusters.mat[ids[WhichTS],])
+      Y_VS_pred<- as.vector(genos_pred[WhichVS,] %*% as.matrix(res$u)  + clusters.mat[ids[WhichVS],] %*% res$beta)
+      fold_acc<-append(fold_acc,cor(phenos[WhichVS, trait], Y_VS_pred))
+      rm(WhichVS, WhichTS)
+    }
+    count=count+1
+    accuracy[count,"accuracy"]<-mean(fold_acc)
+    print(mean(fold_acc))
+  }
+}
+summary(accuracy)
+write.table(accuracy, file=paste0(odir, "/predictions/COLLtoCOLL/rrBLUPs_5fold_5clusters_fix.txt"), quote=F, sep="\t")
+
 ## architecture of traits
 png(file=paste0(odir, "/predictions/COLLtoCOLL/architecture_traits.png"), width=1500, height=600)
 par(mfrow=c(3,5))
@@ -62,16 +105,7 @@ for (trait in traits) {
                  xlab="Effect of marker", nclass=20))
 } 
 dev.off()
-# plot
-accuracy<-read.table(paste0(odir, "/predictions/COLLtoCOLL/accuracy_5fold_rrBLUP.txt"))
 
-png(file=paste0(odir, "/predictions/COLLtoCOLL/COLLtoCOLL_5fold_", nreps, "_reps.png"), height=500, width=800)
-ggplot(accuracy,aes( y=accuracy, x=trait))+
-  geom_boxplot()+
-  labs(x="Trait", title="Predictions rrBLUP 100 CVs 5-fold", y="Predictive ability")+
-  theme(axis.text.x=element_text(angle = 45,  hjust = 1))+ 
-  scale_y_continuous(limits = c(0, 1))
-dev.off()
 
 ## compare with Monte Carlo
 nreps=100

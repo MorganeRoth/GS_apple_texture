@@ -9,7 +9,8 @@ source("01-Init.R")
 # Declare necessary packages
 pkgs_cran <- c("config", "magrittr", "lme4","doBy", "snpStats", "snpReady", "readxl","rrBLUP","reshape2",
                "ggplot2","parallel","dplyr","gplots", "data.table", "corrplot","FactoMineR","factoextra","missMDA", "purrr",
-               "MM4LMM", "nnet", "impute", "snpStats", "robustHD", "adegenet", "agridat")
+               "MM4LMM", "nnet", "impute", "snpStats", "robustHD", "adegenet", "agridat", "STPGA", "plyr",
+               "EMMREML")
 pkgs_bioc <- c("chopsticks")
 
 # Load packages
@@ -30,11 +31,13 @@ source("06-ModelGenos.R")
 ## Do analysis of variance to assess genotypic contribution to trait
 source("08-VarianceAnalysis.R")
 
-# Explore
-## Vizualise
-source("07-VisualiseData.R")
-## Model
-source("08-ModelData.R")
+## Use different prediction scenarios
+source("09-PredictCOLtoFAM.R")
+source("10-Predict_COLLtoCOLL.R")
+source("11-Predict_COLL_propFAM_toFAM.R")
+source("12-Predict_COLL_relatedFAM_toFAM.R")
+source("13-Predict_COLL_to_FAM_relatedness.R")
+source("14-Predict_STPGA_package.R")
 
 # Communicate
 ## Save Output

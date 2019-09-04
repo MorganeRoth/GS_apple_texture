@@ -42,15 +42,16 @@ pred_rel<-function(K,Name) {
       kin_sel<- apply(K[WhichVS,WhichCOL],2,mean) 
       for (nb_col in c(10:length(WhichCOL))) {
         counter=counter+1
-        selection<-order(kin_sel)[1:nb_col]
+        selection<-order(kin_sel, decreasing = T)[1:nb_col]
         mean_rel<-mean(kin_sel[selection])
+        print(mean_rel)
         WhichTRS<- names(kin_sel)[selection]
         res <- mixed.solve(y=phenos[WhichTRS,trait],Z=genos_pred[WhichTRS,])
         Y_VS_pred<- as.vector(genos_pred[WhichVS,] %*% as.matrix(res$u))
         acc<-cor(phenos[WhichVS, trait], Y_VS_pred, use="na.or.complete")
         print(c(trait, fam, nb_col, mean_rel,round(acc, digits=2)))
         results[[trait]][counter,]<-c(nb_col,fam, mean_rel, round(acc, digits=3))
-        rm(res, Y_VS_pred)   
+        rm(res, Y_VS_pred,mean_rel)   
       }
       rm(WhichVS)
     }
@@ -61,6 +62,8 @@ pred_rel<-function(K,Name) {
 }
 
 pred_rel(A, "A.mat")
+K=A
+Name="A.mat"
 results<-readRDS(paste0(odir, "/predictions/COLLtoFAMs_optim_kinship/",Name,"_TRS_opt_all_traits.rds"))
 # saveRDS(results, file=paste0(odir, "/predictions/COLLtoFAMs_optim_kinship/IBS_TRS_opt_all_traits.rds"))
 
@@ -71,19 +74,30 @@ head(results[[traits[1]]])
 
 
 ## select 1 trait with low heritability, one with high and the PC1
-sel_traits<- traits[c(3,11,14)]
+sel_traits<- traits[c(3,11,13,14)]
 
 lapply(sel_traits,function(trait) {
-  par(mfrow=c(2:3))
-  # pdf(file=paste0(odir, "/predictions/COLLtoFAMs_optim_kinship/", trait, "_TRS_opt_size.pdf"))
+  pdf(file=paste0(odir, "/predictions/COLLtoFAMs_optim_kinship/", trait, "_TRS_opt_size.pdf"), height=5, width=8)
+  
+  par(mfrow=c(2:3), mar=c(rep(5,4)))
   lapply(families, function(x) {
   data=results[[trait]] %>% as.data.frame()
-  print(head(data))
+  print(summary(data))
   data=data[which(data$family==x),]
+  data$mean_rel
   plot(data=data, accuracy %>% as.character %>% as.numeric ~ size_TRS  %>% as.character %>% as.numeric,
-       xlab="size_TRS", ylab="accuracy", main=paste(trait, x )) %>% print
+       xlab="size_TRS", ylab="", main=paste(trait, x ), ylim=c(-0.5,1), cex=0.2) %>% print
+  axis(side = 2) %>% print
+  mtext("correlation", side = 2, line = 3, cex=0.75) %>% print
+  par(new = TRUE)
+  plot(data=data, mean_rel %>% as.character %>% as.numeric ~ size_TRS  %>% as.character %>% as.numeric,
+       type = "l", xaxt = "n", yaxt = "n",
+       xlab="", ylab="", main=paste(trait, x ), col="red", ylim=c(-0.09,0.25))  %>% print
+  axis(side = 4) %>% print
+  mtext("mean_relatedness", side = 4, line = 3, cex=0.75, col="red") %>% print
+  abline(a=0, b=0)
   })
-  # dev.off()
+  dev.off()
 })
 
 lapply(sel_traits,function(trait) {

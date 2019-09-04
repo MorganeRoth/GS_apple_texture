@@ -147,6 +147,15 @@ dev.off()
 
 plot(res.pca2$ind$coord[,2]  ~ res.pca2$ind$coord[,1], col=as.factor(subgroup$Group))
 
+## plot graph of variables
+res.pca$var$coord
+MYcols<-c(rep(2, 4), rep(3, 8))
+pdf(file=paste0(odir, "/phenos_modelled/PCA_variables.pdf"), height=6, width=6)
+fviz_pca_var(res.pca,  habillage= as.factor(MYcols),palette=c("darkblue", "red"),label="none")+ 
+  geom_text(aes(label=c(paste0("     ", 1:4), "      5", "   6", "    7", "     8", "    9", "           10", "     11", "     12")))+
+  theme(legend.position = "none")
+dev.off()
+
 ## add phenos PC1 and PC2
 phenos<-as.data.frame(phenos)
 phenos$PC1<-phenos$PC2<-NA

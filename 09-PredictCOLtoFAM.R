@@ -19,7 +19,7 @@ nrow(phenos) == nrow(genos_pred)
 families<-c("FjDe", "FuPi", "FjPL", "GDFj", "GaPi", "GaPL")
 NbFAM<-length(families)
 WhichCOL<-c(1:NbID)[-c(lapply(families, function(x) grep(x, ids) ) %>% unlist)]
-summary(rownames(genos_pred)[WhichCOL] == rownames(phenos)[WhichCOL]) ## 232 with same names
+summary(rownames(genos_pred)[WhichCOL] == rownames(phenos)[WhichCOL]) ## 217 with same names
 
 traits=colnames(phenos)
 accuracy<-data.frame(FAM=rep(families, length(traits)), trait=lapply(traits, function(x) rep(x, NbFAM)) %>% unlist,accuracy=NA)
@@ -116,10 +116,6 @@ ggplot(accuracy,aes( y=as.numeric(accuracy), x=trait))+
   theme(axis.text.x=element_text(angle = 45,  hjust = 1))+
   scale_y_continuous(limits = c(-0.5, 1))
 dev.off()
-
-## compare results with ADI model later  
-
-
 
 
 

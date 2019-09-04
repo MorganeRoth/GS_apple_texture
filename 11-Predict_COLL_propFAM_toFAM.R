@@ -71,20 +71,22 @@ mypred(100,0.3)
 #     }
 #   }
 # }
+nreps=100
+accuracy<-readRDS(paste0(odir, "/predictions/COLLtoFAMs_prop/all_traits_pred_progenies_",round(prop, digits = 2),"_prop", nreps, "_reps.rds"))
 
 write.table(accuracy, file=paste0(odir, "/predictions/COLLtoFAMs_prop/Accuracies.txt"), quote=F, sep="\t")
-# accuracy<-read.table(paste0(odir, "/predictions/COLLtoFAMs/rrBLUPs.txt"), h=T)
+# accuracy<-read.table(paste0(odir, "/predictions/COLLtoFAMs_prop/Accuracies.txt"), h=T)
 summary(accuracy)
 head(accuracy)
 
 
 png(file=paste0(odir, "/predictions/COLLtoFAMs_prop/COLLtoFAM_prop.png"), height=500, width=2000)
-ggplot(accuracy,aes( y=accuracy, x=trait))+
+ggplot(accuracy,aes( y=round(accuracy, digits=3), x=trait))+
   geom_boxplot()+
   facet_grid(~FAM)+
   labs(x="Trait", title=paste0("Predictions rrBLUP COLL to FAMs + prop FAM (", prop*100, "%)"), y="Predictive ability")+
-  theme(axis.text.x=element_text(angle = 45,  hjust = 1))
-  # scale_y_continuous(limits = c(0, 1))
+  theme(axis.text.x=element_text(angle = 45,  hjust = 1)) 
+  # scale_y_continuous(limits = c(0.00, 1.00))
 dev.off()
 
 ## predict within year 2012 (common to all)

@@ -182,6 +182,77 @@ max_lk<-lapply(traits, function(x) {
 max_lk<-cbind(traits, unlist(max_lk)) ## ADI_Dist is always the best model! Use later in predictions
 write.table(max_lk, file=paste0(odir, "/variance_analysis/max_likelihood_each_trait_txt"), quote=F, sep="\t")
 
+## genotypic variance per family
+
+## create matrix for results
+models="A"
+res_mat_FAM<-matrix(NA, nrow=length(traits)*length(models)*length(families), ncol=6)
+colnames(res_mat_FAM)<-c("family", "trait", "model",  "Add", "Error",  "LogLik")
+res_mat_FAM[,"trait"]<-rep(traits,length(models)*length(families))
+res_mat_FAM[,"model"]<-unlist(lapply(models, function(x) rep(x, length(traits)*length(families))))
+res_mat_FAM[,"family"]<-lapply(families, function(x) rep(x, length(traits)*length(models))) %>% unlist
+
+res<-list()
+for (fam in families) {
+  for (trait in traits) {
+    NonMissing<-which(!(is.na(phenos_raw[,trait])) & phenos_raw$Family == fam)
+    Zloc<-lapply(ZList, function(x) x[NonMissing,])
+    res[[trait]][["A"]]<-MMEst(Y=phenos_raw[NonMissing,trait],ZList= Zloc[c("Add", "Error")], VarList =VList[c("Add", "Error")] , Cofactor=NULL)
+    coefs<-res[[trait]][["A"]]$NullModel$Sigma2
+    LogLik<-res[[trait]][["A"]]$NullModel$`LogLik (Reml)`
+    res_mat_FAM[which(res_mat_FAM[,"trait"]==trait & res_mat_FAM[,"model"]=="A" & res_mat_FAM[,"family"]==fam) , c("Add",  "Error")]<-as.numeric(coefs)
+    res_mat_FAM[which(res_mat_FAM[,"trait"]==trait & res_mat_FAM[,"model"]=="A"& res_mat_FAM[,"family"]==fam), "LogLik"]<-as.numeric(LogLik)
+    print(as.numeric(coefs))
+  }
+    
+}
+
+write.table(res_mat_FAM, file=paste0(odir, "/phenos_modelled/variance_per_family.txt"), sep="\t", quote=F, row.names=F)
+
+
+res<-as.data.frame(res_mat_FAM)
+melted<-melt(res, measure.vars=c("Error", "Add") ) 
+melted$trait<-as.factor(melted$trait)
+melted$model<-as.factor(melted$model)
+melted$value<-as.numeric(melted$value)
+head(melted)
+
+melted$trait<-revalue(melted$trait, c("Acoustic_Linear_Distance"="ALD",
+                              "Acoustic_Max_Pressure"="APMax",
+                              "Acoustic_Mean_Pressure" ="APMean",
+                              "Acoustic_Npeak"="ANP",
+                              "Area"="Area",
+                              "Final_Force" ="FF",
+                              "Force_Linear_Distance" ="FLD" ,
+                              "Initial_Force" = "FI",
+                              "Max_Force" = "FMax",
+                              "Mean_Force"= "FMean", 
+                              "N_Peak_Force" ="FNP",
+                              "Young_Module" = "YM"))
+melted$family<-revalue(melted$family, c("FuPi"="FjPi"))
+
+pdf(file=paste0(odir, "/phenos_modelled/variance_per_family.pdf"), height=6, width=12)
+gg<-ggplot(data=melted, aes(fill=variable, y=value, x=family)) + 
+  geom_bar( stat="identity", position="fill")+
+  facet_grid(~trait)+
+  labs(x="Trait and model", title="", y="Proportion")+
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.text.x=element_text(angle=45, vjust=1, hjust=1, size=8))
+
+print(gg) 
+
+dev.off()
+
+xx<-dcast(phenos_raw, value.var="Acoustic_Max_Pressure", Name~Year, mean)
+plot(data=xx[grep("FjPL",xx$Name),], `2012`~ `2013`)
+par(mfrow=c(3,4))
+traits=colnames(phenos_raw)[-c(1:7)]
+lapply(traits, function(x) {
+  data<-dcast(phenos_raw, value.var=x, Name~Year, mean)
+  plot(data=xx[grep("FjPL",xx$Name),], `2012`~ `2013`, main=x) %>% print
+})
+
+
 # Purge obsolete variables
 rm(melted,res_mat, res_mat_years, res )
 
