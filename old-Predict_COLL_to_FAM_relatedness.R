@@ -66,18 +66,38 @@ K=A
 Name="A.mat"
 results<-readRDS(paste0(odir, "/predictions/COLLtoFAMs_optim_kinship/",Name,"_TRS_opt_all_traits.rds"))
 # saveRDS(results, file=paste0(odir, "/predictions/COLLtoFAMs_optim_kinship/IBS_TRS_opt_all_traits.rds"))
-
-plot(data=results[[traits[1]]], accuracy %>% as.character %>% as.numeric ~ mean_rel  %>% as.character %>% as.numeric  )
-plot(data=results[[traits[1]]], accuracy %>% as.character %>% as.numeric ~ size_TRS  %>% as.character %>% as.numeric  )
-head(results[[traits[1]]])
-
-
-
 ## select 1 trait with low heritability, one with high and the PC1
+res2<-results[[3]] %>% as.data.frame()
+res2$trait<-traits[3]
+for (i in c(11,13,14)) {
+  data<-results[[i]] %>% as.data.frame()
+  data$trait<-traits[i]
+  res2<-rbind(res2,data)
+}
+
+summary(res2)
+res2$trait<-revalue(res2$trait, c("Acoustic_Mean_Pressure_BLUP"="APMax","N_Peak_Force_BLUP" ="FNP"))
+res2$size_TRS<-res2$size_TRS %>% as.character %>% as.numeric
+res2$mean_rel<-res2$mean_rel%>% as.character %>% as.numeric
+res2$accuracy<-res2$accuracy %>% as.character %>% as.numeric
+res2$trait<-as.factor(res2$trait)
+par(mfrow=c(2:3), mar=c(rep(5,4)))
+gg<-ggplot(data=res2, aes( x = size_TRS)) +
+  geom_point(aes(y = accuracy, color=trait), size=0.5) +
+  facet_wrap(~family) +
+  geom_line(aes(y = mean_rel)) +
+  scale_y_continuous(sec.axis = sec_axis(~.*1, name = "Mean relatedness"))+  
+  labs(color = "Trait accuracy", y="Accuracy", x="TRS size") +
+  theme( axis.title.y.right = element_text( angle = 90))
+         
+pdf(file=paste0(odir, "/predictions/COLLtoFAMs_optim_kinship/Relatedness_opt_3traits2.pdf"), height=6, width=10)        
+print(gg)
+dev.off()
+
 sel_traits<- traits[c(3,11,13,14)]
 
 lapply(sel_traits,function(trait) {
-  pdf(file=paste0(odir, "/predictions/COLLtoFAMs_optim_kinship/", trait, "_TRS_opt_size.pdf"), height=5, width=8)
+  # pdf(file=paste0(odir, "/predictions/COLLtoFAMs_optim_kinship/", trait, "_TRS_opt_size.pdf"), height=5, width=8)
   
   par(mfrow=c(2:3), mar=c(rep(5,4)))
   lapply(families, function(x) {
@@ -97,7 +117,7 @@ lapply(sel_traits,function(trait) {
   mtext("mean_relatedness", side = 4, line = 3, cex=0.75, col="red") %>% print
   abline(a=0, b=0)
   })
-  dev.off()
+  # dev.off()
 })
 
 lapply(sel_traits,function(trait) {
@@ -108,7 +128,7 @@ lapply(sel_traits,function(trait) {
     print(head(data))
     data=data[which(data$family==x),]
     plot(data=data, accuracy %>% as.character %>% as.numeric ~ mean_rel  %>% as.character %>% as.numeric,
-         xlab="mean_relatedness", ylab="accuracy", main=paste(trait, x ), xlim=c(-0.17, -0.02)) %>% print
+         xlab="mean_relatedness", ylab="accuracy", main=paste(trait, x ) ) %>% print
   })
   # dev.off()
 })

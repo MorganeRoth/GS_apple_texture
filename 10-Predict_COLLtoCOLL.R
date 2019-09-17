@@ -3,6 +3,16 @@ cat("Modelling data...\n")
 # dir.create(paste0(odir, "/predictions"), showWarnings = FALSE, recursive = TRUE)
 dir.create(paste0(odir, "/predictions/COLLtoCOLL"), showWarnings = FALSE, recursive = TRUE)
 
+## if import, model phenos, mnodel genos scripts are skipped, load data here
+id_pheno<-read.table(paste0(odir, "/phenos_modelled/rownames_phenos.txt"))
+## problem with duplicated rowname that I do not understand, use id_pheno to replace them (saved with phenos)
+phenos<-read.table(paste0(odir, "/phenos_modelled/BLUPs_PC1_PC2_for_pred.txt"), h=T, row.names = id_pheno$x %>% as.character())
+phenos<-phenos[,-1]
+genos_ready=readRDS(paste0(idir, "/genos_imputed_for_pred.rds"))
+## clusters from DAPC analysis
+clusters<-read.table(paste0(odir, "/genos_modelled/assignments_COLL_DAPC.txt"), h=T)
+cluster_fams<-read.table(paste0(odir, "/genos_modelled/assignements_families.txt"), h=T)
+
 # Predict each family with the collection
 ## Now we need phenos and genos_ready files
 ## reinitialise order of IDs
@@ -11,21 +21,21 @@ NbID<-length(ids)
 cat("Number of common genos/phenos: \n")
 print(NbID)
 phenos<-phenos[ids,]
-genos_pred<-genos_ready[ids,]
-nrow(phenos) == nrow(genos_pred)
+genos_ready<-genos_ready[ids,]
+nrow(phenos) == nrow(genos_ready)
 ## simple rrBLUP
 
 ## list of IDs in collection and family names
-families<-c("FjDe", "FuPi", "FjPL", "GDFj", "GaPi", "GaPL")
+families<-c("FjDe", "FjPi", "FjPL", "GDFj", "GaPi", "GaPL")
 NbFAM<-length(families)
 WhichCOL<-c(1:NbID)[-c(lapply(families, function(x) grep(x, ids) ) %>% unlist)]
-summary(rownames(genos_pred)[WhichCOL] == rownames(phenos)[WhichCOL]) ## 215 with same names
+summary(rownames(genos_ready)[WhichCOL] == rownames(phenos)[WhichCOL]) ## 242 with same names
 
 traits=colnames(phenos)
 
 ## help on 5-fold design: https://stats.stackexchange.com/questions/61090/how-to-split-a-data-set-to-do-10-fold-cross-validation
 nREPs=100
-accuracy<-data.frame(Rep=rep(1:nreps, length(traits)), trait=lapply(traits, function(x) rep(x, nreps)) %>% unlist,accuracy=NA)
+accuracy<-data.frame(Rep=rep(1:nREPs, length(traits)), trait=lapply(traits, function(x) rep(x, nREPs)) %>% unlist,accuracy=NA)
 count=0
 for (trait in traits) {
   for (REP in 1:nREPs) {
@@ -36,8 +46,8 @@ for (trait in traits) {
       #Segement your data by fold using the which() function 
       WhichVS <- ids_shuffle[which(folds==i) ]
       WhichTS <- ids_shuffle[-which(folds==i) ]
-      res <- mixed.solve(y=phenos[WhichTS,trait],Z=genos_pred[WhichTS,])
-      Y_VS_pred<- as.vector(genos_pred[WhichVS,] %*% as.matrix(res$u))
+      res <- mixed.solve(y=phenos[WhichTS,trait],Z=genos_ready[WhichTS,])
+      Y_VS_pred<- as.vector(genos_ready[WhichVS,] %*% as.matrix(res$u))
       fold_acc<-append(fold_acc,cor(phenos[WhichVS, trait], Y_VS_pred))
       rm(WhichVS, WhichTS)
     }
@@ -46,7 +56,6 @@ for (trait in traits) {
     print(mean(fold_acc))
   }
 }    
-
 
 write.table(accuracy, file=paste0(odir, "/predictions/COLLtoCOLL/accuracy_5fold_rrBLUP.txt"), quote=F, sep="\t")
 
@@ -64,14 +73,17 @@ dev.off()
 ## add cluster effect
 ## try with clusters (as fix effect)
 head(clusters)
+clusters<-as.data.frame(clusters)
 clusters$Cluster<-as.factor(clusters$Cluster)
 clusters.mat<-class.ind(clusters$Cluster)
 rownames(clusters.mat)<-clusters$Name
+summary(rownames(clusters.mat)== rownames(genos_ready)[WhichCOL])
 
 accuracy<-data.frame(Rep=rep(1:nREPs, length(traits)), trait=lapply(traits, function(x) rep(x, nREPs)) %>% unlist,accuracy=NA)
 count=0
-
+nREPs=100
 for (trait in traits) {
+  print(trait)
   for (REP in 1:nREPs) {
     folds <- cut(seq(1,length(WhichCOL)),breaks=5,labels=FALSE) ## create folds
     ids_shuffle<-sample(WhichCOL) ## randomize ids
@@ -80,18 +92,21 @@ for (trait in traits) {
       #Segement your data by fold using the which() function 
       WhichVS <- ids_shuffle[which(folds==i) ]
       WhichTS <- ids_shuffle[-which(folds==i) ]
-      res <- mixed.solve(y=phenos[WhichTS,trait],Z=genos_pred[WhichTS,], X=clusters.mat[ids[WhichTS],])
-      Y_VS_pred<- as.vector(genos_pred[WhichVS,] %*% as.matrix(res$u)  + clusters.mat[ids[WhichVS],] %*% res$beta)
+      res <- mixed.solve(y=phenos[WhichTS,trait],Z=genos_ready[WhichTS,], X=clusters.mat[ids[WhichTS],])
+      Y_VS_pred<- as.vector(genos_ready[WhichVS,] %*% as.matrix(res$u)  + clusters.mat[ids[WhichVS],] %*% res$beta)
       fold_acc<-append(fold_acc,cor(phenos[WhichVS, trait], Y_VS_pred))
       rm(WhichVS, WhichTS)
     }
     count=count+1
     accuracy[count,"accuracy"]<-mean(fold_acc)
     print(mean(fold_acc))
+    
   }
+  write.table(accuracy, file=paste0(odir, "/predictions/COLLtoCOLL/rrBLUPs_5fold_5clusters_fix.txt"), quote=F, sep="\t")
 }
+
 summary(accuracy)
-write.table(accuracy, file=paste0(odir, "/predictions/COLLtoCOLL/rrBLUPs_5fold_5clusters_fix.txt"), quote=F, sep="\t")
+accuracy<-read.table(paste0(odir, "/predictions/COLLtoCOLL/rrBLUPs_5fold_5clusters_fix.txt"))
 
 ## architecture of traits
 png(file=paste0(odir, "/predictions/COLLtoCOLL/architecture_traits.png"), width=1500, height=600)
@@ -100,7 +115,7 @@ mynorm<-function(x) (x - min(x))/(max(x) - min(x))
 for (trait in traits) {
       #Segement your data by fold using the which() function 
       data<- mynorm(phenos[,trait])
-      res <- mixed.solve(y=data,Z=genos_pred)
+      res <- mixed.solve(y=data,Z=genos_ready)
       print(hist(res$u, main=paste0(trait, "\n", "(sd:", round(sd(res$u), digits=4),")"),
                  xlab="Effect of marker", nclass=20))
 } 
@@ -114,9 +129,9 @@ count=0
 for (trait in traits) {
   for (rep in 1:nreps) {
     WhichTS<-sample(WhichCOL, round(length(WhichCOL))*4/5)
-    res <- mixed.solve(y=phenos[WhichTS,trait],Z=genos_pred[WhichTS,])
+    res <- mixed.solve(y=phenos[WhichTS,trait],Z=genos_ready[WhichTS,])
     WhichVS<-setdiff(WhichCOL, WhichTS)
-    Y_VS_pred<- as.vector(genos_pred[WhichVS,] %*% as.matrix(res$u))
+    Y_VS_pred<- as.vector(genos_ready[WhichVS,] %*% as.matrix(res$u))
     acc<-cor(phenos[WhichVS, trait], Y_VS_pred, use="na.or.complete")
     count=count+1
     accuracy[count,"accuracy"]<-acc
@@ -156,10 +171,10 @@ for (Y in levels(phenos_col$Year)) {
     pheno<-data[NonMissing,] %>% droplevels 
     pheno<- aggregate(x=pheno[,trait],by=list(pheno$Name),FUN= mean)
     rownames(pheno)<-pheno$Group.1
-    ids<-intersect(rownames(genos_pred), rownames(pheno)) %>% sort
+    ids<-intersect(rownames(genos_ready), rownames(pheno)) %>% sort
     pheno<-pheno[ids,]
-    WhichCOL<-which(rownames(genos_pred) %in% ids)
-    summary(rownames(genos_pred)[WhichCOL] == rownames(pheno))
+    WhichCOL<-which(rownames(genos_ready) %in% ids)
+    summary(rownames(genos_ready)[WhichCOL] == rownames(pheno))
     for (rep in 1:nreps) {
       folds <- cut(seq(1,length(WhichCOL)),breaks=5,labels=FALSE) ## create folds
       ids_shuffle<-sample(WhichCOL) ## randomize ids
@@ -168,9 +183,9 @@ for (Y in levels(phenos_col$Year)) {
         #Segment your data by fold using the which() function 
         WhichVS <- ids_shuffle[which(folds==i) ]
         WhichTS <- ids_shuffle[-which(folds==i) ]
-        res <- mixed.solve(y=pheno[rownames(genos_pred)[WhichTS],"x"],Z=genos_pred[WhichTS,])
-        Y_VS_pred<- as.vector(genos_pred[WhichVS,] %*% as.matrix(res$u))
-        fold_acc<-append(fold_acc,cor(pheno[rownames(genos_pred)[WhichVS],"x"], Y_VS_pred, use="na.or.complete"))
+        res <- mixed.solve(y=pheno[rownames(genos_ready)[WhichTS],"x"],Z=genos_ready[WhichTS,])
+        Y_VS_pred<- as.vector(genos_ready[WhichVS,] %*% as.matrix(res$u))
+        fold_acc<-append(fold_acc,cor(pheno[rownames(genos_ready)[WhichVS],"x"], Y_VS_pred, use="na.or.complete"))
         rm(WhichVS, WhichTS)
       }
       count=count+1

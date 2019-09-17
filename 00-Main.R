@@ -21,6 +21,8 @@ source("03-LoadFunc.R")
 # Configuration
 config <- config::get()
 
+## if you want to start directly with predictions go to each specific script
+## and load data from there
 # Wrangle
 ## Import
 source("04-ImportData.R")

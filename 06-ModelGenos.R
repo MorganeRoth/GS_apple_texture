@@ -2,12 +2,12 @@ cat("Analyzing genos...\n")
 
 dir.create(paste0(odir, "/genos_modelled"), showWarnings = FALSE, recursive = TRUE)
 # Here we compute different kinship and make some plots
-
+parents<- read.table(paste0(idir, "/families_parents.txt"), sep="\t", h=T)
 # First we need to round imputed values
 genos_round<-apply(genos_ready,2, function(x) as.numeric(x) %>% round(., digits=0))
 rownames(genos_round)<-ids
 apply(genos_round[,1:20], 2, function(x) as.factor(x) %>%summary) ## now entire values only
-cat("sanity check")
+cat("sanity check\n")
 genos_round[genos_round==2]<-1
 genos_round[genos_round==-2]<- -1
 genos_ready[1:6,1:6] ## sanity check
@@ -31,8 +31,9 @@ SnpSummary <- lapply(1:NbMarker, function(snp){
 ## Any non informative snps ?
 InfSnp <- map_lgl(SnpSummary,~ ((.x[1]==NbID) | (.x[3]==NbID))  ) %>% 
   reduce(c)
-cat("How many uninformative SNPs (TRUE)?")
-table(InfSnp) 
+cat("How many uninformative SNPs (TRUE)?\n")
+
+print(table(InfSnp) )
 
 ## Get probs
 Probs <- SnpSummary %>% map(., ~ .x/NbID) %>% reduce(rbind)
@@ -76,7 +77,7 @@ Geno.Dom <- sapply(1:NbMarker, function(snp){
 MakeK <- function(MatGeno){
   Mat <- tcrossprod(MatGeno) 
   Mat <- NbID*Mat/sum(diag(Mat))
-  colnames(Mat) <- row.names(Mat) <- row.names(genos_round)
+  colnames(Mat) <- rownames(Mat) <- row.names(genos_round)
   return(Mat)
 }
 
@@ -122,12 +123,13 @@ rownames(genos_ready)<-rownames(genos_ready)
 A <- A.mat(genos_ready)
 colnames(A)<-rownames(A)<-rownames(genos_ready)
 png(file=paste0(odir, "/genos_modelled/Ka_Amat.png"), height=1500, width=1500)
-heatmap(A, symm=T) %>% print
+myh<-heatmap(A, symm=T) 
+print(myh)
 dev.off()
 write.table(A, file=paste0(odir, "/genos_modelled/Ka_Amat.txt"), row.names=T, quote=F, sep="\t")
-
+write.table(colnames(A)[myh$colInd], file=paste0(odir, "/genos_modelled/Clustering_Amat.txt"), row.names=T, quote=F, sep="\t")
 ## Means relatedness (additive) between families and collection
-families<-c("FjDe", "FuPi", "FjPL", "GDFj", "GaPi", "GaPL")
+families<-c("FjDe", "FjPi", "FjPL", "GDFj", "GaPi", "GaPL")
 WhichCOL<-c(1:nrow(K.Add))[-c(lapply(families, function(x) grep(x, rownames(K.Add)) ) %>% unlist)]
 length(WhichCOL) ## 233 ids
 rel<-matrix(NA, nrow=length(families), ncol=1, dimnames=list(families, "mean_rel_collection"))
@@ -232,7 +234,6 @@ dev.off()
 # output mean genetic relationship of each family to collection and other families
 # list positions of identifiers for each category
 
-
 mean_rel<-function(K, families, Name){
   whichCOL<-c(1:nrow(K))[-c(lapply(families, function(x) grep(x,rownames(K)) ) %>% unlist)]
   which_cat<-lapply(families, function(x) grep(x, rownames(K)))
@@ -265,27 +266,48 @@ res.pca2 <- PCA(genos_round, graph = F, ind.sup=c(1:nrow(genos_round))[-WhichCOL
 png(file=paste0(odir, "/genos_modelled/PCA_collection.png"), width=1200, height=800, res=150)
 fviz_pca_ind(res.pca)
 fviz_pca_ind(res.pca,  col.ind.sup="blue", label="none" )
-
 dev.off()
-
-fviz_pca_ind (res.pca)
 
 geno_dapc<- new("genlight", (genos_round+1)[WhichCOL,]) 
 # table(genos_round+1)
+cat("DAPC 1st step: Choose number of PCA axes to retain (all) et number of clusters\n")
 grp <- find.clusters(geno_dapc, max.n.clust=15)## keep 300 PCA axes and 5 clusters
+cat("DAPC 2d step: Choose number of PCA axes to retain (enough) and number of discriminant functions\n")
 dapc1 <- dapc(geno_dapc, grp$grp) ## keep 150 PCA axes and 4 discriminants functions
+write.table(dapc1$ind.coord, file=paste0(odir, "/genos_modelled/coordinates_DAPC_COL.txt"), row.names=T, quote=F, sep="\t")
 par(mfrow=c(1,1))
-pdf(file=paste0(odir, "/genos_modelled/DAPC_150PC_5clusters.pdf"), height=6, width=8)
+pdf(file=paste0(odir, "/genos_modelled/DAPC_150PC_5clusters.pdf"), height=6, width=6)
 scatter(dapc1, ratio.pca=0.3, bg="white", 
         pch=20, cell=0, cstar=0, col=rainbow(5), solid=.4, cex=3, 
-        clab=0, mstree=TRUE, scree.da=FALSE, posi.pca="bottomright",
+        clab=0, mstree=TRUE, scree.da=FALSE, posi.leg="bottomright",
         leg=TRUE, txt.leg=paste("Cluster",1:5))
+### online help for adding labels http://lists.r-forge.r-project.org/pipermail/adegenet-forum/2014-September/000959.html
+# change graphical parameter to subsequently overlay the labels without
+# drawing a new plot
+par(new=TRUE)
+# make a data frame of the dapc coordinates used in scatter
+PARENTS<-unique(c(parents$Parent1 %>% as.character(), parents$Parent2 %>%as.character()))
+df <- data.frame(x = dapc1$ind.coord[,1], y = dapc1$ind.coord[,2])
+# identify/ create a vector of names for the individuals in your plot
+whichPAR<-which(rownames(dapc1$ind.coord) %in% PARENTS)
+noms <- rep(" ", nrow(dapc1$ind.coord))
+noms[whichPAR]<-rownames(dapc1$ind.coord)[whichPAR]
+# use the text function to add labels to the positions given by the coordinates you used in plot
+s.label(dfxy = df, xax=1, yax=2, label=c(noms),
+        clabel=1, # change the size of the labels
+        boxes=F, # if points are spaced wide enough, can use TRUE to add boxes around the labels
+        grid=FALSE, addaxes=T) # do not draw lines or axes in addition to the labels
 dev.off()
 # export assignements in COL
 saveRDS(dapc1,file=paste0(odir, "/genos_modelled/DAPC_COLL_150PC_4clusters.rds"))
 clusters<- cbind(rownames(genos_round)[WhichCOL],dapc1$assign) ## keep, will be used in prediction
 colnames(clusters)<-c("Name", "Cluster")
 write.table(clusters, file=paste0(odir, "/genos_modelled/assignments_COLL_DAPC.txt"),sep="\t", quote=F, row.names=F)
+parents$Parent1<-as.character(parents$Parent1)
+parents$Parent2<-as.character(parents$Parent2)
+clusters[which(clusters[,"Name"] %in% c(parents$Parent1, parents$Parent2)),]
+
+## all parents except Fuji in cluster2
 
 ## add families
 sup_id<-c(1:nrow(genos_round))[-WhichCOL]
@@ -293,13 +315,15 @@ sup_x<-new("genlight", (genos_round+1)[sup_id,])
 dapc_pred <- dapc(geno_dapc,grp$grp,n.pca=150,n.da=4)
 pred.sup <- predict.dapc(dapc_pred, newdata=sup_x)
 names(pred.sup)
+write.table(pred.sup$ind.scores, file=paste0(odir, "/genos_modelled/coord_DAPC_families.txt"),sep="\t", quote=F, row.names=T)
+
 cluster_fams<-data.frame(Name=rownames(genos_round)[sup_id], cluster= pred.sup$assign)
 head(cluster_fams)
 col <- rainbow(length(levels(grp$grp)))
 col.points <- transp(col[as.integer(grp$grp)],.7)
 pdf(file=paste0(odir, "/genos_modelled/mapping_fam_DAPC.pdf"), height=6, width=8)
 scatter(dapc_pred, col=col, bg="white", scree.da=0, pch="",
-        cstar=0, clab=0, xlim=c(-10,10), legend=TRUE)
+        cstar=0, clab=0, legend=TRUE, posi.leg="topleft", xlim=c(-8,14), ylim=c(-5,7)) %>% print
 
 par(xpd=TRUE)
 ## print COLL
@@ -311,14 +335,14 @@ points(pred.sup$ind.scores[,1], pred.sup$ind.scores[,2], pch=20,
        col=transp(col.sup,.3), cex=3)
 points(pred.sup$ind.scores[,1], pred.sup$ind.scores[,2], pch=20,
        col=transp("black",.3), cex=2)
-add.scatter.eig(dapc_pred$eig,15,1,2, posi="bottomright", inset=.02)
+add.scatter.eig(dapc_pred$eig,15,1,2, posi="topright", inset=.02) %>% print
 dev.off()
 
 write.table(cluster_fams, file=paste0(odir, "/genos_modelled/assignements_families.txt"), sep="\t", quote=F, row.names=F)
 # Purge obsolete variables
-
+rm(genos_add, Coding.Add, Coding.Dom)
 
 # Garbage collection
 gc()
 
-cat("Data transformed!\n")
+cat("Genotyped analyzed!\n")

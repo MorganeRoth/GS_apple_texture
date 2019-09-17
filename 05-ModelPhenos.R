@@ -11,6 +11,8 @@ cat("Getting BLUPs")
 ### year nested in genotypes
 ### try different models
 
+phenos=readRDS(paste0(idir, "/phenos_ready_for_pred.rds"))
+summary(phenos)
 phenos$Family<-as.character(phenos$Family)
 phenos[which(is.na(phenos$Family)), "Family"]<-"Collection"
 phenos$Family<-as.factor(phenos$Family)
@@ -23,16 +25,17 @@ mylm_function <- function(trait) {
   res<-matrix(values, nrow=3, ncol=1, dimnames=list(1:3,trait ))
   return(res)
 }
-## CAREFUL:
-mylm_function(traits[12])
-## For Force_Linear_Distance and for For Acoustic_Linear_Distance model 1 does not converge 
-## This model cannot be used afterwards
-all_mod<-sapply(traits, function(trait) mylm_function(trait)) %>% as.data.frame()
-all_mod
+cat("check if necessary which model doesn't converge for which trait\n")
 
+## This model cannot be used for all traits afterwards
+all_mod<-sapply(traits, function(trait) mylm_function(trait)) %>% as.data.frame()
+# all_mod
+# lmer(data=phenos, get(traits[12]) ~ (1|Name) +(1|Trial/Name)  )
+# lmer(data=phenos, get(traits[2]) ~ (1|Name) + (1|Year/Name))
 ## for each trait, selec the best model
 selection_mod<-data.frame(trait=traits, model=lapply(traits, function(i) which(all_mod[[i]] == min(all_mod[[i]]))) %>% unlist)
-## keep model 3 for all
+## keep model 3 for all except trait for which model does not converge (look manually)
+Names<-levels(phenos$Name)
 blups_all_traits<-matrix(NA, nrow=length(Names), ncol=length(traits), dimnames=list(Names, traits))
 
 myfun<-function(trait){
@@ -47,8 +50,20 @@ myfun<-function(trait){
   rm(blups)
 }
 
-for (trait in traits){ myfun(trait)} ## somehow mapply not working
+myfun0<-function(trait){
+  mylm_sel<-lmer(data=phenos, get(trait) ~ (1|Name) +(1|Year/Name))
+  print(dim(ranef(mylm_sel)$`Name:Year`)) ## we keep only the Name nested in family because the other terms are GxE
+  blups<-ranef(mylm_sel)$`Name`
+  print(ranef(mylm_sel)$`Year`)
+  ## need to add the familly effects, because they are genetics!
+  ids<-rownames(blups)
+  blups_all_traits[which(Names %in% ids), trait]<<-blups$`(Intercept)`[which(ids%in% Names)] ## IMPORTANT use recursive operator
+  print(trait)
+  rm(blups)
+}
 
+for (trait in traits){ myfun(trait)} 
+# for (trait in traits[2]){ myfun0(trait)} 
 png(file=paste0(odir, "/phenos_modelled/BLUPs_all_traits_trial_nested_effects.png"), height=600, width=800 )
 par(mfrow=c(3,4))
 lapply(traits, function(x) print(hist(blups_all_traits[,x], main="", xlab=x))) %>% print
@@ -102,7 +117,7 @@ dev.off()
 print("corrplot LS/Blups plotted")
 
 # Get PC1 and PC2 from phenos
-## Need to impute missing data
+## Need to impute missing data ? there are here but keep script like that in case
 phenos<-blups_all_traits
 rownames(phenos)<-blups_all_traits[,1]
 phenos<-phenos[,-1]
@@ -118,7 +133,8 @@ WhichCOL<-c(1:nrow(phenos))[-c(lapply(families, function(x) grep(x,rownames(phen
 groups<-data.frame(Names=rownames(phenos), Group=NA)
 groups$Group[WhichCOL]<-"Collection"
 groups$Group[-WhichCOL]<-lapply(groups$Name[-WhichCOL] ,function(x) substr(x,1,4)) %>% unlist
-png(file=paste0(odir, "/phenos_modelled/PCA_all_traits.png"), width=1200, height=800, res=150)
+# png(file=paste0(odir, "/phenos_modelled/PCA_all_traits.png"), width=1200, height=800, res=150)
+pdf(file=paste0(odir, "/phenos_modelled/PCA_all_traits.pdf"), width=8, height=6)
 ## useful infos on plotting here
 # http://www.sthda.com/french/wiki/fviz-pca-visualisation-de-l-analyse-en-composante-principale-logiciel-r-et-analyse-de-donn-es
 fviz_pca_ind(res.pca,  habillage= as.factor(groups$Group), 
@@ -127,6 +143,15 @@ fviz_pca_ind(res.pca,  habillage= as.factor(groups$Group),
              label="none", pointshape = 19) %>% print
 dev.off()
 
+## plot graph of variables
+res.pca$var$coord
+traits_short=c("IF", "MF","FF", "NPF", "Area", "FLD", "YM", "MF", "ANP", "AMP", "ALD", "AMP")
+MYcols<-c(rep(2, 4), rep(3, 8))
+pdf(file=paste0(odir, "/phenos_modelled/PCA_variables.pdf"), height=6, width=6)
+fviz_pca_var(res.pca,  habillage= as.factor(MYcols),palette=c("darkblue", "red"),label="none")+ 
+  geom_text(aes(label=c(paste0("     ",c(2,4,3,1)), "      9", "   12", "    7", "     8", "    11", "           10", "     5", "     6")))+
+  theme(legend.position = "none")
+dev.off()
 
 ## plot just families and parents
 whichParents<-which(rownames(phenos) %in% c("FuMoHo", "Pinova", "CriPin", "RoyGal", "GolDel", "Delear"))
@@ -135,25 +160,15 @@ subgroup=groups[c(whichFAM,whichParents),]
 nb <- estim_ncpPCA(phenos[c( whichFAM,whichParents),],method.cv = "Kfold", verbose = FALSE)
 res.comp <- imputePCA(phenos[c( whichFAM,whichParents),], ncp = nb$ncp) 
 res.pca2 <- PCA(res.comp,  ncp = nb$ncp, graph=T)
-nn<-c(rep("",(349-6)), "CriPin" ,  "Delear" ,  "FuMoHo" ,  "GolDel" ,  "Pinova" ,  "RoyGal"  )
+nn<-c(rep("",(length(c( whichFAM,whichParents))-6)), "PinkLady" ,  "Delear" ,  "FuMoHo" ,  "GolDel" ,  "Pinova" ,  "RoyGal"  )
 
-png(file=paste0(odir, "/phenos_modelled/PCA_all_traits_FAM_PARENTS.png"), width=1200, height=800, res=150)
+# png(file=paste0(odir, "/phenos_modelled/PCA_all_traits_FAM_PARENTS.png"), width=1200, height=800, res=150)
+pdf(file=paste0(odir, "/phenos_modelled/PCA_all_traits_FAM_PARENTS.pdf"), width=8, height=6)
 fviz_pca_ind(res.pca2, habillage = as.factor(subgroup$Group), 
              palette=c("black","red", "lightgreen", "skyblue", "orange", "yellow", "purple"),
              pointshape = 19, label="none") +
-             geom_text(aes(label=nn, x=res.pca2$ind$coord[,1]-1.3, y=res.pca2$ind$coord[,2]), size=5)
+             geom_text(aes(label=nn, x=res.pca2$ind$coord[,1], y=res.pca2$ind$coord[,2]), size=5)
 
-dev.off()
-
-plot(res.pca2$ind$coord[,2]  ~ res.pca2$ind$coord[,1], col=as.factor(subgroup$Group))
-
-## plot graph of variables
-res.pca$var$coord
-MYcols<-c(rep(2, 4), rep(3, 8))
-pdf(file=paste0(odir, "/phenos_modelled/PCA_variables.pdf"), height=6, width=6)
-fviz_pca_var(res.pca,  habillage= as.factor(MYcols),palette=c("darkblue", "red"),label="none")+ 
-  geom_text(aes(label=c(paste0("     ", 1:4), "      5", "   6", "    7", "     8", "    9", "           10", "     11", "     12")))+
-  theme(legend.position = "none")
 dev.off()
 
 ## add phenos PC1 and PC2
@@ -166,51 +181,7 @@ summary(phenos)
 cat("phenos file consists in BLUPs + PC1 and PC2 - can be modified in script!")
 
 write.table(phenos, file=paste0(odir, "/phenos_modelled/BLUPs_PC1_PC2_for_pred.txt"), sep="\t", quote=F, row.names = T)
-
-#### use lme4 for getting BLUPs - model selection for each trait
-## no nesting - no used afterwards but kept script
-# mylm_function<-function(trait) {
-#   mylm1<-lmer(data=phenos, get(trait) ~ (1|Name) + (1|Trial))
-#   mylm2<-lmer(data=phenos, get(trait) ~ (1|Name) + Trial)
-#   mylm3<-lmer(data=phenos, get(trait) ~ (1|Name) + Year + Location )
-#   mylm4<-lmer(data=phenos, get(trait) ~ (1|Name) + Year )
-#   mylm5<-lmer(data=phenos, get(trait) ~ (1|Name) + (1|Year))
-#   values<-lapply(1:5, function (x) AIC(logLik(get(paste0("mylm", x))))) %>% unlist
-#   res<-matrix(values, nrow=5, ncol=1, dimnames=list(1:5,trait ))
-# }
-# 
-# all_mod<-sapply(traits, function(trait) mylm_function(trait)) %>% as.data.frame()
-# rownames(all_mod)=1:5
-# cat("AIC values for each model, see script for models")
-# cat("for each trait, select the best model")
-# selection_mod<-data.frame(trait=traits, model=lapply(traits, function(i) which(all_mod[[i]] == min(all_mod[[i]]))[1]) %>% unlist)
-# selection_mod
-# 
-# mylm1<-function(phenos,trait){lmer(data=phenos, get(trait) ~ (1|Name) + (1|Trial))}
-# mylm2<-function(phenos,trait){lmer(data=phenos, get(trait) ~ (1|Name) + Trial)}
-# mylm3<-function(phenos,trait){lmer(data=phenos, get(trait) ~ (1|Name) + Year + Location )}
-# mylm4<-function(phenos,trait){lmer(data=phenos, get(trait) ~ (1|Name) + Year )}
-# mylm5<-function(phenos,trait){lmer(data=phenos, get(trait) ~ (1|Name) + (1|Year))}
-# blups_all_traits<-matrix(NA, nrow=length(Names), ncol=length(traits), dimnames=list(Names, traits))
-# 
-# myfun<-function(trait,number){
-#   mylm_sel<-get(paste0("mylm", number))(phenos, trait)
-#   blups<-ranef(mylm_sel)$Name
-#   print(trait)
-#   print(c(dim(blups), length(which((rownames(blups)%in% Names)))))
-#   blups_all_traits[rownames(blups), trait]<<-blups$`(Intercept)` ## use recursive operator
-# }
-# 
-# for (i in 1:dim(selection_mod)[1] ){ myfun(as.character(selection_mod[i,1]), selection_mod[i,2])} ## somehow mapply not working
-# 
-# png(file=paste0(odir, "/phenos_modelled/BLUPs_all_traits_no_nesting.txt.png"))
-# par(mfrow=c(3,4))
-# lapply(traits, function(x) print(hist(blups_all_traits[,x], main="", xlab=x))) %>% print
-# dev.off()
-# 
-# cat("Histogram of BLUPs plotted")
-# 
-# write.table(blups_all_traits, paste0(odir, "/phenos_modelled/BLUPs_all_traits_no_nesting.txt"), sep="\t", quote=F, row.names=T)
+write.table(rownames(phenos), file=paste0(odir, "/phenos_modelled/rownames_phenos.txt"))
 
 # Purge obsolete variables
 rm()
