@@ -27,7 +27,7 @@ nrow(phenos) == nrow(genos_pred)
 ## simple rrBLUP
 
 ## list of IDs in collection and family names
-
+traits=colnames(phenos)
 families<-c("FjDe", "FjPi", "FjPL", "GDFj", "GaPi", "GaPL")
 NbFAM<-length(families)
 WhichCOL<-c(1:NbID)[-c(lapply(families, function(x) grep(x, ids) ) %>% unlist)]
@@ -192,7 +192,7 @@ pred_clust<-function(clusters, K) {
 }
 
 pred_clust(clusters, A)
-
+Name="A.mat"
 # results<-readRDS(paste0(odir, "/predictions/COLLtoFAMs_optim_kinship/",Name,"_TRS_opt_CLUSTERS_all_traits.rds"))
 
 ## keep only 4 traits and plot results
@@ -216,32 +216,15 @@ gg<-ggplot(data=res2, aes( x = size_TRS)) +
   geom_point(aes(y = accuracy, color=trait), size=2) +
   facet_wrap(~family) +
   geom_line(aes(y = mean_rel*8+0.3)) +
-  scale_y_continuous(sec.axis = sec_axis(~(.-0.3)/8, name = "Mean relatedness"), limits=c(-0.3,1),breaks=c(-0.2,0,0.2,0.4,0.6,0.8,1,1.2))+  
+  scale_y_continuous(sec.axis = sec_axis(~(.-0.3)/8, name = "Mean relatedness"), limits=c(-0.3,1.1),breaks=c(-0.2,0,0.2,0.4,0.6,0.8,1,1.2))+  
   labs(color = "Trait accuracy", y="Accuracy", x="TRS size") +
   theme( axis.title.y.right = element_text( angle = 90),
          legend.position = "left")
 
-pdf(file=paste0(odir, "/predictions/COLLtoFAMs_optim_kinship/Cluster_opt_3traits2.pdf"), height=6, width=10)        
+pdf(file=paste0(odir, "/predictions/COLLtoFAMs_optim_kinship/Cluster_opt_4traits.pdf"), height=6, width=10)        
 print(gg)
 dev.off()
-clusters_fam<-read.table("~/mnt/agroscope_os/2/2/6/1/1/4/6021/GenSel_Costa_collab/R_output/genos_modelled/assignements_families.txt", h=T)
-head(clusters_fam)
-clusters_fam$group=substr(clusters_fam$Name, 1,4)
-clusters$group="Collection"
-colnames(clusters_fam)<-colnames(clusters)
-all_clusters=rbind(clusters, clusters_fam)
-barplot(table(all_clusters$group,all_clusters$Cluster), col=rainbow(7))
 
-p=ggplot(data=all_clusters, aes(x=as.factor(Cluster), fill=group)) 
-pdf(file=paste0(odir, "/predictions/COLLtoFAMs_optim_kinship/clusters_assignements_histo.pdf"), height=6, width=6)
-pp=p+geom_bar(stat="count",position = "stack") +
-  scale_fill_manual(values=c('#66c2a5','#fc8d62','#8da0cb','#e78ac3','#a6d854','#ffd92f','#e5c494'))+
-  labs(x="Cluster", y="Count", fill="Population")
-  
-print(pp)
-dev.off()
-clusters[unique(c(parents$Parent1, parents$Parent2) ),]
-all_clusters[which(all_clusters$group =="GaPi"),]
 
 # ## select 1 trait with low heritability, one with high and the PC1
 # sel_traits<- traits[c(3,11,13,14)]

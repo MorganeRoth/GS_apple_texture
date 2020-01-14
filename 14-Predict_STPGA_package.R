@@ -3,10 +3,8 @@ cat("Predicting with STPGA package...\n")
 dir.create(paste0(odir, "/predictions/STPGA"), showWarnings = FALSE, recursive = TRUE)
 
 ## if import, model phenos, mnodel genos scripts are skipped, load data here
-id_pheno<-read.table(paste0(odir, "/phenos_modelled/rownames_phenos.txt"))
 ## problem with duplicated rowname that I do not understand, use id_pheno to replace them (saved with phenos)
-phenos<-read.table(paste0(odir, "/phenos_modelled/BLUPs_PC1_PC2_for_pred.txt"), h=T, row.names = id_pheno$x %>% as.character())
-phenos<-phenos[,-1]
+phenos<-read.table(paste0(odir, "/phenos_modelled/BLUPs_PC1_PC2_for_pred.txt"), h=T)
 genos_ready=readRDS(paste0(idir, "/genos_imputed_for_pred.rds"))
 traits=colnames(phenos)
 families<-c("FjDe", "FjPi", "FjPL", "GDFj", "GaPi", "GaPL")
@@ -36,8 +34,8 @@ A<-A[ids,ids]
 ## assignements
 ## for running the optimization, either PCA-like coordinates a supplied, or an inverted kinship matrix
 ## I choose to import the DAPC coordinates for collection and families
-col_assi<-read.table(paste0(odir, "/genos_modelled/coordinates_DAPC_COL.txt"),h=T) 
-fam_assi<-read.table(paste0(odir, "/genos_modelled/coord_DAPC_families.txt"),h=T) 
+col_assi<-read.table(paste0(odir, "/genos_modelled/to_keep/coordinates_DAPC_COL.txt"),h=T) 
+fam_assi<-read.table(paste0(odir, "/genos_modelled/to_keep/coord_DAPC_families.txt"),h=T) 
 assi<-rbind(col_assi,fam_assi)
 summary(assi)
 
@@ -55,9 +53,10 @@ repeatgenalg0<-function(ntrain, criteria, G,Test, Candidates){
   return(ListTrain)
 }
 
-FAM=families[1]
-trait=traits[1]
-criteria="CDMEAN"
+# for trials
+# FAM=families[1]
+# trait=traits[1]
+# criteria="CDMEAN"
 
 ## very important: P parameter must be a matrix !!!!!!!!!!!!!!
 
@@ -65,6 +64,7 @@ pred_fam_trait0 <-function(FAM, trait, criteria) {
   ThisFAM<-ids[ grep(FAM, ids)]
   WhichCOLFAM<-c(WhichCOL, ThisFAM)%>% sort
   # A_COLFAM<-assi[WhichCOLFAM, ] %>% as.matrix
+  # G<-A[WhichCOLFAM,] %>% as.matrix
   G<-assi[WhichCOLFAM,]
   Test<-rownames(G)[grep(FAM, rownames(G))  %>% unlist]
   Candidates<- setdiff(rownames(G), Test)
@@ -87,7 +87,7 @@ pred_fam_trait0 <-function(FAM, trait, criteria) {
     deptestopt$id<-factor(deptestopt$id, levels=c(rownames(deptrainopt), rownames(deptestopt)))
     Ztrain<-model.matrix(~-1+deptrainopt$id)
     Ztest<-model.matrix(~-1+deptestopt$id)
-    K=A[c(rownames(deptrainopt), rownames(deptestopt)),c(rownames(deptrainopt), rownames(deptestopt))]
+    K=A[c(rownames(deptrainopt), rownames(deptestopt)),c(rownames(deptrainopt), rownames(deptestopt))] %>% as.matrix()
     modelopt<-emmreml(y=deptrainopt[,trait],X=matrix(1, nrow=nrow(deptrainopt), ncol=1), 
                       Z=Ztrain, K=as.matrix(K))
     predictopt<-Ztest%*%modelopt$uhat
@@ -106,7 +106,17 @@ for (i in traits) {
   }
 }
 saveRDS(res_cor, file=paste0(odir,  "/predictions/STPGA/opt_PEVMEAN.rds"))
-par(mfrow=c(2,3))
+
+res_cor=list()
+for (i in traits) {
+  for (j in families) {
+    # xx<-pred_fam_trait0(i, j)
+    res_cor[[i]][[j]]<-pred_fam_trait0(j, i, "CDMEAN")
+    
+  }
+}
+saveRDS(res_cor, file=paste0(odir,  "/predictions/STPGA/opt_CDMEAN.rds"))
+
 
 par(mfrow=c(2:3), mar=c(rep(5,4)))
 
@@ -127,7 +137,10 @@ myplot <- function(trait){
     # abline(a=0, b=0)
   })
 }
-pdf("trial.pdf")
+
+res_cor<-readRDS(paste0(odir,  "/predictions/STPGA/opt_PEVMEAN.rds"))
+pdf("trial.pdf", height=6, width = 8)
+par(mfrow=c(2,3))
 myplot("PC1") %>% print
 dev.off()
 
@@ -145,7 +158,7 @@ write.table(res_CDmean, file=paste0(odir, "/predictions/STPGA/all_res_optimisati
 ## compare to opt with relatedness
 sel_traits<- traits[c(3,11,13,14)]
 par(mfrow=c(2,3))
-res_rel<-readRDS("~/mnt/agroscope_os/2/2/6/1/1/4/6021/GenSel_Costa_collab/R_output/20190816/predictions/COLLtoFAMs_optim_kinship/A.mat_TRS_opt_all_traits.rds")
+res_rel<-readRDS("~/mnt/agroscope_os/2/2/6/1/1/4/6021/GenSel_Costa_collab/R_output/predictions/COLLtoFAMs_optim_kinship/A.mat_TRS_opt_all_traits.rds")
 lapply(sel_traits,function(trait) {
   # pdf(file=paste0(odir, "/predictions/COLLtoFAMs_optim_kinship/", trait, "_TRS_opt_size.pdf"), height=5, width=8)
   data=res_rel[[trait]] %>% as.data.frame()
@@ -170,11 +183,47 @@ lapply(sel_traits,function(trait) {
 })
 ## End(Not run)
 
+## plot 4 traits at the same time
+res_cor<-readRDS(paste0(odir,  "/predictions/STPGA/opt_PEVMEAN.rds"))
+res2<-res_cor[[sel_traits[1]]] %>% as.data.frame()
+res2$trait=sel_traits[1]
+
+for (trait in sel_traits[-1] ) {
+  data<-res_cor[[trait]] %>% as.data.frame()
+  print(head(data))
+  data$trait<-trait
+  res2<-rbind(res2,data)
+}
+
+summary(res2)
+head(res2)
+res2<-res2[,-c(3,5,7,9,11)]
+colnames(res2)<-c("size_TRS", families, "trait")
+res2$trait<-revalue(res2$trait, c("Acoustic_Mean_Pressure_BLUP"="APMax","N_Peak_Force_BLUP" ="FNP"))
+res2$size_TRS<-res2$size_TRS %>% as.character %>% as.numeric
+# res2$mean_rel<-res2$mean_rel%>% as.character %>% as.numeric
+res2<-melt(res2, measure.vars=families)
+summary(res2)
+res2$trait<-as.factor(res2$trait)
+colnames(res2)[c(3,4)]<-c("family", "accuracy")
+gg<-ggplot(data=res2, aes( x = size_TRS)) +
+  geom_line(aes(y = accuracy, color=trait), size=0.7, linetype="dashed") +
+  geom_point(aes(y = accuracy, color=trait), size=2) +
+  facet_wrap(~family) +
+  # geom_line(aes(y = mean_rel*8+0.3)) +
+  # scale_y_continuous(sec.axis = sec_axis(~(.-0.3)/8, name = "Mean relatedness"), limits=c(-0.3,1),breaks=c(-0.2,0,0.2,0.4,0.6,0.8,1,1.2))+  
+  scale_y_continuous(limits=c(-0.45,1),breaks=c(-0.4,-0.2,0,0.2,0.4,0.6,0.8,1,1.2))+  
+  labs(color = "Trait accuracy", y="Accuracy", x="TRS size") +
+  theme( axis.title.y.right = element_text( angle = 90),
+         legend.position = "left")
+
+pdf(file=paste0(odir, "/predictions/STPGA/PEVmean.pdf"), height=6, width=11)        
+print(gg)
+dev.off()
 
 
 ################################################################################
 ### STEP 2 find the optimal training pop with a given number of individuals ####
-## CRASHES !!! #################################################################
 ################################################################################
 
 
@@ -182,7 +231,7 @@ lapply(sel_traits,function(trait) {
 ###implement an for multiple starting points for genetic algorithm.
 
 
-repeatgenalg<-function(numrepsouter,numrepsinner, ntrain){
+repeatgenalg<-function(numrepsouter,numrepsinner,ntrain, criteria, G,Test, Candidates){
   StartingPopulation2=NULL 
   for (i in 1:numrepsouter){
     print("Rep:")
@@ -190,9 +239,9 @@ repeatgenalg<-function(numrepsouter,numrepsinner, ntrain){
     StartingPopulation<-lapply(1:numrepsinner, function(x){
       GenAlgForSubsetSelection(P=G,Candidates=Candidates, 
                                Test=Test, ntoselect=ntrain, InitPop=StartingPopulation2,
-                               mutprob=.5, mutintensity = rpois(1,4),
-                               niterations=10,minitbefstop=1, tabumemsize = 2,plotiters=F, 
-                               lambda=1e-9,errorstat=model, mc.cores=5)})
+                               # mutprob=.5, mutintensity = rpois(1,4),
+                               niterations=20,minitbefstop=5, tabumemsize = 2,plotiters=F, 
+                               lambda=1e-9,errorstat=criteria, mc.cores=8)})
     StartingPopulation2<-vector(mode="list", length = numrepsouter*1)
     ij=1
     for (i in 1:numrepsinner){
@@ -209,23 +258,24 @@ repeatgenalg<-function(numrepsouter,numrepsinner, ntrain){
                                       lambda=1e-9,errorstat="CDMEAN", mc.cores=5)
   return(ListTrain)
 }
-### Now repeat this for each value of ntrain from 10, increment of 10 until 210
+### Now repeat this for each value of ntrain from 10, increment of 20 until 210
 ## do this for each family
 traits=colnames(phenos)
 
-pred_fam_trait <-function(FAM, trait) {
+pred_fam_trait <-function(FAM, trait, criteria, increment) {
   res_cor<-list()
   ThisFAM<-ids[ grep(FAM, ids)]
   WhichCOLFAM<-c(WhichCOL, ThisFAM)%>% sort
+  G<-assi[WhichCOLFAM,]
   assiCOLFAM<-assi[WhichCOLFAM, ]
   Test<-rownames(assiCOLFAM)[grep(FAM, rownames(assiCOLFAM))  %>% unlist]
-  Candidates<- setdiff(rownames(assiFAM), Test)
+  Candidates<- setdiff(rownames(G), Test)
   phenos_sub<-phenos[WhichCOLFAM,]
   phenos_sub$id<-rownames(phenos_sub)
-  to_test<- seq(10,(length(WhichCOL)),10) ## TRS sizes to test increment of 10
+  to_test<- seq(10,(length(WhichCOL)),increment) ## TRS sizes to test increment of different sizes
   ListTrain<-lapply(to_test, function(ntrain){ 
     print(ntrain)
-    repeatgenalg(5,3,ntrain, )
+    repeatgenalg(5,3, ntrain, criteria, as.matrix(G),Test, Candidates)
   } )
   ##predictions by optimized sample
   
@@ -233,73 +283,95 @@ pred_fam_trait <-function(FAM, trait) {
   
   res_cor[[trait]][[FAM]]<-matrix(NA, ncol=2, nrow=length(to_test), dimnames=list(to_test, c("size", "corr")))
   lapply(1:length(to_test), function(x){
-    deptrainopt<-phenos_sub[phenos_sub$id%in%ListTrain[[x]][[1]],]
+    deptrainopt<-phenos_sub[phenos_sub$id%in%ListTrain[[x]][[1]],] ## choose solutions with rank 1
     deptrainopt$id<-factor(deptrainopt$id, levels=c(rownames(deptrainopt), rownames(deptestopt)))
     deptestopt$id<-factor(deptestopt$id, levels=c(rownames(deptrainopt), rownames(deptestopt)))
     Ztrain<-model.matrix(~-1+deptrainopt$id)
     Ztest<-model.matrix(~-1+deptestopt$id)
     K=A[c(rownames(deptrainopt), rownames(deptestopt)),c(rownames(deptrainopt), rownames(deptestopt))]
+    K=as.matrix(K)
     modelopt<-emmreml(y=deptrainopt[,trait],X=matrix(1, nrow=nrow(deptrainopt), ncol=1), 
                       Z=Ztrain, K=K)
     predictopt<-Ztest%*%modelopt$uhat
     CORR<-cor(predictopt, deptestopt[,trait])
     res_cor[[trait]][[FAM]][x,]<<-c(to_test[x], CORR )
-    return(res_cor)
+    saveRDS(res_cor, file=paste0(odir, "/predictions/STPGA/init_STPGA_",paste(FAM, trait, criteria,increment, sep="_" ), ".txt"))
   })
 }
 
-res<-lapply(families,function(x) pred_fam_trait(x, "PC1"))
 
-## sanity check here:
-summary(rownames(phenos) == ids)
+# pred_fam_trait("GaPL", "PC1", "PEVMEAN")
+myparam<-matrix(c(lapply(families, function(x) rep(x, length(traits)))%>% unlist,
+                  rep(traits, length(families))), nrow=length(traits)*length(families), ncol=2,
+                dimnames=list(c(1:(length(traits)*length(families))), c("fam", "trait")))
+res<-mapply(function(x,y) pred_fam_trait(x, y, "PEVMEAN", 20), myparam[,"fam"],myparam[,"trait"] )
 
-deptestopt<-phenos[rownames(phenos)%in%Test,]
+FAM=families[1]
+trait=traits[1]
+criteria="CDMEAN"
+increment=20
+mytrait=read.table(paste0(odir, "/predictions/STPGA/init_STPGA_",paste(FAM, trait, criteria,increment, sep="_" ), ".txt"), h=T)
 
-##predictions by optimized sample
-deptrainopt<-phenos[(rownames(phenos)%in%ListTrain[[1]]),]
+#############################
+## save data for 4 traits ###
+## create plots too #########
+#############################
 
-## need a factor for the model
-deptrainopt$id<-factor(rownames(deptrainopt), levels=c(rownames(deptrainopt), rownames(deptestopt)))
-deptestopt$id<-factor(rownames(deptestopt), levels=c(rownames(deptrainopt), rownames(deptestopt)))
-
-Ztrain<-model.matrix(~-1+deptrainopt$id)
-Ztest<-model.matrix(~-1+deptestopt$id)
-
-K=A[c(rownames(deptrainopt), rownames(deptestopt)),c(rownames(deptrainopt), rownames(deptestopt))]
-
-colnames(Ztrain)
-modelopt<-emmreml(y=deptrainopt$PC1,X=matrix(1, nrow=nrow(deptrainopt), ncol=1), 
-                  Z=Ztrain, K=K)
-
-modelopt %>% attributes
-
-predictopt<-Ztest%*%modelopt$uhat
-
-corvecrs<-c()
-for (rep in 1:50){
-  ###predictions by a random sample of the same size
-  rs<-sample(Candidates, 50)
-  
-  deptestrs<-phenos[ids%in%Test,]
-  
-  deptrainrs<-phenos[(ids%in%rs),]
-  
-  deptrainrs$id<-factor(rownames(deptrainrs), levels=c(rownames(deptrainrs), rownames(deptestrs)))
-  deptestrs$id<-factor(rownames(deptestrs), levels=c(rownames(deptrainrs), rownames(deptestrs)))
-  
-  Ztrain<-model.matrix(~-1+deptrainrs$id)
-  Ztest<-model.matrix(~-1+deptestrs$id)
-  
-  modelrs<-emmreml(y=deptrainrs$PC1,X=matrix(1, nrow=nrow(deptrainrs), ncol=1), 
-                   Z=Ztrain, K=K)
-  predictrs<-Ztest%*%modelrs$uhat
-  corvecrs<-c(corvecrs,cor(predictrs, deptestrs$PC1))
-  
+criteria="PEVMEAN"
+increment=20
+res<-data.frame(size=NA, corr=NA, FAM=NA, trait=NA)
+for (trait in c("N_Peak_Force_BLUP", "Acoustic_Linear_Distance_BLUP", "PC1", "PC2")){
+  assign(trait, res)
+  for (FAM in families) {
+    data= readRDS(paste0(odir, "/predictions/STPGA/init_STPGA_",paste(FAM, trait, criteria,increment, sep="_" ), ".txt")) %>% as.data.frame()
+    data$FAM<-rep(FAM, nrow(data))
+    data$trait<- trait
+    colnames(data)<-c("size", "corr", "FAM", "trait")
+    assign(trait, rbind(get(trait), data))
+  }
+  res<-rbind(get(trait), res)
 }
-mean(corvecrs)
-cor(predictopt, deptestopt$PC1)
+res<-res[-which(is.na(res$size)),]
+dim(res)
+res$FAM<-as.factor(res$FAM)
+res$trait<-as.factor(res$trait)
+summary(res)
+res$trait<-revalue(res$trait, c("Acoustic_Linear_Distance_BLUP"="ALD","N_Peak_Force_BLUP" ="FNP"))
+write.table(res,paste0(odir, "/predictions/STPGA/res_4traits_PEVMEAN_20.txt"))
+res<-read.table(paste0(odir, "/predictions/STPGA/res_4traits_CDMEAN_20.txt"),h=T)
 
-##1 is black, 2 is red: red is training set optimized: all belonging to Cluster 5
-plot(assi[,4],assi[,5], col=rownames(assi)%in%ListTrain[[1]]+1,
-     pch=2*rownames(assi)%in%Test+1, xlab="Cluster4", ylab="Cluster5")
+gg<-ggplot(data=res, aes( x = size, y=corr)) +
+  geom_line(aes(y = corr, color=trait), size=0.7, linetype="dashed") +
+  geom_point(aes(y = corr, color=trait), size=2) +
+  facet_wrap(~FAM) +
+  scale_y_continuous( limits=c(-0.4,1),breaks=c(-0.2,0,0.2,0.4,0.6,0.8,1))+
+  labs(color = "Trait accuracy", y="Accuracy", x="TRS size") +
+  theme( axis.title.y.right = element_text( angle = 90),
+         legend.position = "left")
+pdf(file=paste0(odir, "/predictions/STPGA/CDMEAN_opt_4traits.pdf"), height=6, width=10)     
+print(gg)
+dev.off()
+
+
+#############################
+## save data for all traits #
+#############################
+traits=colnames(phenos)
+criteria="PEVMEAN"
+increment=20
+res<-data.frame(size=NA, corr=NA, FAM=NA, trait=NA, criteria=NA)
+for (trait in traits){
+  assign(trait, res)
+  for (FAM in families) {
+    data= readRDS(paste0(odir, "/predictions/STPGA/init_STPGA_",paste(FAM, trait, criteria,increment, sep="_" ), ".txt")) %>% as.data.frame()
+    data$FAM<-rep(FAM, nrow(data))
+    data$trait<- trait
+    data$criteria<-criteria
+    colnames(data)<-c("size", "corr", "FAM", "trait", "criteria")
+    data=unique(data)
+    assign(trait, rbind(get(trait), data))
+  }
+  res<-rbind(get(trait), res)
+}
+
 

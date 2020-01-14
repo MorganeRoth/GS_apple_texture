@@ -4,10 +4,10 @@ dir.create(paste0(odir, "/predictions"), showWarnings = FALSE, recursive = TRUE)
 dir.create(paste0(odir, "/predictions/COLLtoFAMs_prop"), showWarnings = FALSE, recursive = TRUE)
 
 ## if import, model phenos, mnodel genos scripts are skipped, load data here
-id_pheno<-read.table(paste0(odir, "/phenos_modelled/rownames_phenos.txt"))
+# id_pheno<-read.table(paste0(odir, "/phenos_modelled/rownames_phenos.txt"))
 ## problem with duplicated rowname that I do not understand, use id_pheno to replace them (saved with phenos)
-phenos<-read.table(paste0(odir, "/phenos_modelled/BLUPs_PC1_PC2_for_pred.txt"), h=T, row.names = id_pheno$x %>% as.character())
-phenos<-phenos[,-1]
+phenos<-read.table(paste0(odir, "/phenos_modelled/BLUPs_PC1_PC2_for_pred.txt"), h=T)
+
 genos_ready=readRDS(paste0(idir, "/genos_imputed_for_pred.rds"))
 
 # Predict each family with the collection and proportion of the family
@@ -23,8 +23,8 @@ cat("genos and phenos have the same ids order:\n")
 nrow(phenos) == nrow(genos_pred)
 
 ## clusters from DAPC analysis
-clusters<-read.table(paste0(odir, "/genos_modelled/assignments_COLL_DAPC.txt"), h=T)
-cluster_fams<-read.table(paste0(odir, "/genos_modelled/assignements_families.txt"), h=T)
+clusters<-read.table(paste0(odir, "/genos_modelled/to_keep/assignments_COLL_DAPC.txt"), h=T)
+cluster_fams<-read.table(paste0(odir, "/genos_modelled/to_keep/assignements_families.txt"), h=T)
 head(clusters)
 clusters<-matrix(clusters[,"Cluster"], nrow=nrow(clusters), ncol=1, dimnames = list(clusters[,"Name"], "Cluster"))
 rownames(clusters)
@@ -40,7 +40,7 @@ WhichCOL<-c(1:NbID)[-c(lapply(families, function(x) grep(x, ids) ) %>% unlist)]
 summary(rownames(genos_pred)[WhichCOL] == rownames(phenos)[WhichCOL]) ## 242 with same names
 traits=colnames(phenos)
 
-
+# traits=c("PC1","PC2")
 mypred<-function(nreps, prop){
   accuracy<-data.frame(rep=rep(1:nreps,  length(traits)*NbFAM),
                        FAM=rep(lapply(families, function(x) rep(x, nreps)) %>% unlist, length(traits)), 
@@ -56,9 +56,8 @@ mypred<-function(nreps, prop){
       for (i in 1:nreps){
         count=count+1
         Which_FAM_TRS<-sample(Which_FAM, round(length(Which_FAM))*prop)
-        Which_FAM_VS<-Which_FAM[-Which_FAM_TRS]
-        print(length(Which_FAM_TRS))
-        print(length(Which_FAM_VS))
+        Which_FAM_VS<-Which_FAM[-which(Which_FAM %in% Which_FAM_TRS)]
+        print(isTRUE(length(Which_FAM_TRS)+length(Which_FAM_VS) == length(Which_FAM)))
         res <- mixed.solve(y=phenos[c(WhichCOL, Which_FAM_TRS),trait],Z=genos_pred[c(WhichCOL, Which_FAM_TRS),])
         Y_VS_pred<- as.vector(as.matrix(genos_pred[Which_FAM_VS,]) %*% as.matrix(res$u))
         accuracy[count,"accuracy"] <-  cor(phenos[Which_FAM_VS, trait], Y_VS_pred)
@@ -115,6 +114,7 @@ mypred_CL<-function(nreps, prop){
         cluster_TRS<-rbind(clusters,cluster_FAM[ids[Which_FAM_TRS],])
         res <- mixed.solve(y=phenos[c(WhichCOL, Which_FAM_TRS),trait],Z=genos_pred[c(WhichCOL, Which_FAM_TRS),], X=cluster_TRS) ## cluster as fix effect
         Y_VS_pred<- as.vector(genos_pred[Which_FAM_VS,] %*% as.matrix(res$u) + cluster_FAM[ids[Which_FAM_VS],] %*% res$beta)
+        summary(rownames(phenos)[c(WhichCOL, Which_FAM_TRS)]==rownames(genos_pred)[c(WhichCOL, Which_FAM_TRS)]) %>% print
         accuracy[count,"accuracy"] <-  cor(phenos[Which_FAM_VS, trait], Y_VS_pred)
         print( cor(phenos[Which_FAM_VS, trait], Y_VS_pred))
         # print(head(accuracy))
@@ -124,7 +124,6 @@ mypred_CL<-function(nreps, prop){
   saveRDS(accuracy, file = paste0(odir, "/predictions/COLLtoFAMs_prop/all_traits_pred_progenies_",round(prop, digits = 2),"_prop", nreps, "_reps_5clusters.rds"))
 }
 mypred_CL(100,0.3)
-
 acc<-readRDS( paste0(odir, "/predictions/COLLtoFAMs_prop/all_traits_pred_progenies_",round(prop, digits = 2),"_prop", 100, "_reps_5clusters.rds"))
 
 

@@ -10,7 +10,7 @@ source("01-Init.R")
 pkgs_cran <- c("config", "magrittr", "lme4","doBy", "snpStats", "snpReady", "readxl","rrBLUP","reshape2",
                "ggplot2","parallel","dplyr","gplots", "data.table", "corrplot","FactoMineR","factoextra","missMDA", "purrr",
                "MM4LMM", "nnet", "impute", "snpStats", "robustHD", "adegenet", "agridat", "STPGA", "plyr",
-               "EMMREML")
+               "EMMREML", "viridis")
 pkgs_bioc <- c("chopsticks")
 
 # Load packages

@@ -4,10 +4,11 @@ cat("Modelling data...\n")
 dir.create(paste0(odir, "/predictions/COLLtoCOLL"), showWarnings = FALSE, recursive = TRUE)
 
 ## if import, model phenos, mnodel genos scripts are skipped, load data here
-id_pheno<-read.table(paste0(odir, "/phenos_modelled/rownames_phenos.txt"))
+# id_pheno<-read.table(paste0(odir, "/phenos_modelled/rownames_phenos.txt"))
 ## problem with duplicated rowname that I do not understand, use id_pheno to replace them (saved with phenos)
-phenos<-read.table(paste0(odir, "/phenos_modelled/BLUPs_PC1_PC2_for_pred.txt"), h=T, row.names = id_pheno$x %>% as.character())
-phenos<-phenos[,-1]
+phenos<-read.table(paste0(odir, "/phenos_modelled/BLUPs_PC1_PC2_for_pred.txt"), h=T)
+summary(phenos)
+# phenos<-phenos[,-1]
 genos_ready=readRDS(paste0(idir, "/genos_imputed_for_pred.rds"))
 ## clusters from DAPC analysis
 clusters<-read.table(paste0(odir, "/genos_modelled/assignments_COLL_DAPC.txt"), h=T)
@@ -29,7 +30,7 @@ nrow(phenos) == nrow(genos_ready)
 families<-c("FjDe", "FjPi", "FjPL", "GDFj", "GaPi", "GaPL")
 NbFAM<-length(families)
 WhichCOL<-c(1:NbID)[-c(lapply(families, function(x) grep(x, ids) ) %>% unlist)]
-summary(rownames(genos_ready)[WhichCOL] == rownames(phenos)[WhichCOL]) ## 242 with same names
+summary(rownames(genos_ready)[WhichCOL] == rownames(phenos)[WhichCOL]) ## 259 with same names
 
 traits=colnames(phenos)
 
@@ -38,6 +39,7 @@ nREPs=100
 accuracy<-data.frame(Rep=rep(1:nREPs, length(traits)), trait=lapply(traits, function(x) rep(x, nREPs)) %>% unlist,accuracy=NA)
 count=0
 for (trait in traits) {
+# for (trait in c("PC1","PC2")) {
   for (REP in 1:nREPs) {
     folds <- cut(seq(1,length(WhichCOL)),breaks=5,labels=FALSE) ## create folds
     ids_shuffle<-sample(WhichCOL) ## randomize ids
@@ -58,6 +60,7 @@ for (trait in traits) {
 }    
 
 write.table(accuracy, file=paste0(odir, "/predictions/COLLtoCOLL/accuracy_5fold_rrBLUP.txt"), quote=F, sep="\t")
+# write.table(accuracy, file=paste0(odir, "/predictions/COLLtoCOLL/accuracy_5fold_rrBLUP_PC12_new_values.txt"), quote=F, sep="\t")
 
 # boxplot
 accuracy<-read.table(paste0(odir, "/predictions/COLLtoCOLL/accuracy_5fold_rrBLUP.txt"))
@@ -82,6 +85,9 @@ summary(rownames(clusters.mat)== rownames(genos_ready)[WhichCOL])
 accuracy<-data.frame(Rep=rep(1:nREPs, length(traits)), trait=lapply(traits, function(x) rep(x, nREPs)) %>% unlist,accuracy=NA)
 count=0
 nREPs=100
+# traits=c("PC1", "PC2")
+# accuracy<-data.frame(Rep=rep(1:nREPs, length(traits)), trait=lapply(traits, function(x) rep(x, nREPs)) %>% unlist,accuracy=NA)
+
 for (trait in traits) {
   print(trait)
   for (REP in 1:nREPs) {
@@ -102,7 +108,9 @@ for (trait in traits) {
     print(mean(fold_acc))
     
   }
-  write.table(accuracy, file=paste0(odir, "/predictions/COLLtoCOLL/rrBLUPs_5fold_5clusters_fix.txt"), quote=F, sep="\t")
+  # write.table(accuracy, file=paste0(odir, "/predictions/COLLtoCOLL/rrBLUPs_5fold_5clusters_fix.txt"), quote=F, sep="\t")
+  write.table(accuracy, file=paste0(odir, "/predictions/COLLtoCOLL/rrBLUPs_5fold_5clusters_fix_PC1_PC2.txt"), quote=F, sep="\t")
+  
 }
 
 summary(accuracy)

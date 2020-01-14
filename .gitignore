@@ -8,6 +8,9 @@
 config.yml
 *.html
 *.pdf
+*.rds
+*.png
+*.txt
 
 **/input/
 **/output/

@@ -4,10 +4,8 @@ dir.create(paste0(odir, "/predictions"), showWarnings = FALSE, recursive = TRUE)
 dir.create(paste0(odir, "/predictions/COLLtoFAMs_add_relFAM"), showWarnings = FALSE, recursive = TRUE)
 
 ## if import, model phenos, mnodel genos scripts are skipped, load data here
-id_pheno<-read.table(paste0(odir, "/phenos_modelled/rownames_phenos.txt"))
 ## problem with duplicated rowname that I do not understand, use id_pheno to replace them (saved with phenos)
-phenos<-read.table(paste0(odir, "/phenos_modelled/BLUPs_PC1_PC2_for_pred.txt"), h=T, row.names = id_pheno$x %>% as.character())
-phenos<-phenos[,-1]
+phenos<-read.table(paste0(odir, "/phenos_modelled/BLUPs_PC1_PC2_for_pred.txt"), h=T)
 genos_ready=readRDS(paste0(idir, "/genos_imputed_for_pred.rds"))
 
 # Predict each family with the collection and related family
@@ -23,8 +21,8 @@ cat("genos and phenos have the same ids order:\n")
 nrow(phenos) == nrow(genos_pred)
 
 ## clusters from DAPC analysis
-clusters<-read.table(paste0(odir, "/genos_modelled/assignments_COLL_DAPC.txt"), h=T)
-cluster_fams<-read.table(paste0(odir, "/genos_modelled/assignements_families.txt"), h=T)
+clusters<-read.table(paste0(odir, "/genos_modelled/to_keep/assignments_COLL_DAPC.txt"), h=T)
+cluster_fams<-read.table(paste0(odir, "/genos_modelled/to_keep/assignements_families.txt"), h=T)
 head(clusters)
 clusters<-matrix(clusters[,"Cluster"], nrow=nrow(clusters), ncol=1, dimnames = list(clusters[,"Name"], "Cluster"))
 rownames(clusters)
