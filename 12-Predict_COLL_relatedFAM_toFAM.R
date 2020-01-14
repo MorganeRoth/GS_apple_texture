@@ -1,4 +1,4 @@
-at("Predicting with COL and one related family...\n")
+cat("Predicting with COL and one related family...\n")
 
 dir.create(paste0(odir, "/predictions"), showWarnings = FALSE, recursive = TRUE)
 dir.create(paste0(odir, "/predictions/COLLtoFAMs_add_relFAM"), showWarnings = FALSE, recursive = TRUE)
@@ -20,16 +20,6 @@ genos_pred<-genos_ready[ids,]
 cat("genos and phenos have the same ids order:\n")
 nrow(phenos) == nrow(genos_pred)
 
-## clusters from DAPC analysis
-clusters<-read.table(paste0(odir, "/genos_modelled/to_keep/assignments_COLL_DAPC.txt"), h=T)
-cluster_fams<-read.table(paste0(odir, "/genos_modelled/to_keep/assignements_families.txt"), h=T)
-head(clusters)
-clusters<-matrix(clusters[,"Cluster"], nrow=nrow(clusters), ncol=1, dimnames = list(clusters[,"Name"], "Cluster"))
-rownames(clusters)
-clusters<-clusters[rownames(genos_pred)[WhichCOL],"Cluster"] %>% as.matrix
-rownames(clusters)<-rownames(genos_pred)[WhichCOL]
-rownames(cluster_fams)<-cluster_fams$Name
-cluster_fams$cluster<-factor(cluster_fams$cluster, levels=1:5)
 ## parents
 parents<- read.table(paste0(idir, "/families_parents.txt"), sep="\t", h=T)
 ## simple rrBLUP
@@ -38,9 +28,20 @@ parents<- read.table(paste0(idir, "/families_parents.txt"), sep="\t", h=T)
 families<-c("FjDe", "FjPi", "FjPL", "GDFj", "GaPi", "GaPL")
 NbFAM<-length(families)
 WhichCOL<-c(1:NbID)[-c(lapply(families, function(x) grep(x, ids) ) %>% unlist)]
-summary(rownames(genos_pred)[WhichCOL] == rownames(phenos)[WhichCOL]) ## 242 with same names
+summary(rownames(genos_pred)[WhichCOL] == rownames(phenos)[WhichCOL]) ## 259 with same names
 
 traits=colnames(phenos)
+## clusters from DAPC analysis
+clusters<-read.table(paste0(odir, "/genos_modelled/assignments_COLL_DAPC.txt"), h=T)
+cluster_fams<-read.table(paste0(odir, "/genos_modelled/assignements_families.txt"), h=T)
+head(clusters)
+clusters<-matrix(clusters[,"Cluster"], nrow=nrow(clusters), ncol=1, dimnames = list(clusters[,"Name"], "Cluster"))
+rownames(clusters)
+clusters<-clusters[rownames(genos_pred)[WhichCOL],"Cluster"] %>% as.matrix
+rownames(clusters)<-rownames(genos_pred)[WhichCOL]
+rownames(cluster_fams)<-cluster_fams$Name
+cluster_fams$cluster<-factor(cluster_fams$cluster, levels=1:6)
+
 # accuracy<-data.frame(FAM=rep(families, length(traits)), trait=lapply(traits, function(x) rep(x, NbFAM)) %>% unlist,accuracy=NA)
 accuracy<-data.frame( fam_predicted=NA,fam_training=NA, trait=NA, acc=NA)
 count=0
@@ -121,6 +122,7 @@ for (FAM in families) {
   }
 }
 write.table(accuracy, file=paste0(odir, "/predictions/COLLtoFAMs_add_relFAM/COLLtoFAMs_add_relFAM_clusters.txt"))
+accuracy=read.table(paste0(odir, "/predictions/COLLtoFAMs_add_relFAM/COLLtoFAMs_add_relFAM_clusters.txt"))
 accuracy$acc<-as.numeric(accuracy$acc)
 res<-aggregate(accuracy$acc, by=list(accuracy$fam_predicted, accuracy$trait), mean)
 res_sd<-aggregate(accuracy$acc, by=list(accuracy$fam_predicted, accuracy$trait), sd)

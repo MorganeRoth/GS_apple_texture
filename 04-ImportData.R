@@ -46,53 +46,10 @@ lapply(outcrossers, function(x) grep(x,rownames(genos_add))) %>% unlist
 to_remove<-lapply(outcrossers, function(x) grep(x,rownames(genos_add))) %>% unlist
 genos_add<-genos_add[-to_remove,]
 phenos<-phenos[-which(phenos$Name %in% outcrossers),]
-
-## Data already filter MAF >0.05 and call rate > 0.5 for individuals
-
-## reshape for snpStats - recode 0,1,2 and NA are 9
-# genos_fil<-genos_add
-# genos_fil[which(is.na(genos_fil))]<-8
-# genos_fil<- genos_fil + 1
-# genos_fil[1:5,1:5]
-# table(genos_fil)
-# genos_fil<-new("SnpMatrix", as.matrix(genos_fil) )
-# rownames(genos_fil)<-IDs$New_geno_name
-# if needed: change IDs
-# grep("MagGol", IDs)
-# rownames(genos_add)[132]<-"Magr"
-
-# ## filter data
-# idsum<-row.summary(genos_fil)
-# hist(idsum$Call.rate)
-# snpsum<-col.summary(genos_fil)
-# summary(snpsum)
-# hwe=snpsum$z.HWE
-# quantile(hwe, probs=seq(0,1,0.25), na.rm=T)
-# q=quantile(hwe, probs=c(1e-4, (1-1.1e-4)), na.rm=T)
-# hist(snpsum$Call.rate)
-# hist(snpsum$z.HWE)
-# hist(snpsum$MAF)
-# ## filter for these values of Z 
-# snpsel=snpsum[which(snpsum$Call.rate>0.20 & snpsum$MAF>0.05 ),] ## do not filter on HWE
-# nrow(snpsum)-nrow(snpsel)## filtering out 2263 Mks
-# idsum<-row.summary(genos_fil)
-# summary(idsum)
-
-# # Filter on MAF and call rate
-# snpsel=rownames(snpsel)
-# genos_fil<-genos_add[, which(colnames(genos_add) %in% snpsel)]
-# length( which(colnames(genos_add) %in% snpsel))
-# cat(ncol(genos_add)-ncol(genos_fil),"SNPs will be removed due to low MAF or low call rate") 
-# # write.table(genot_sel, file="genotypes_filtered.txt", quote=F, row.names=F, sep="\t")
-# # genot_sel=read.table("genotypes_filtered.txt", sep="\t", h=T)
-
-## impute
-genos_ready<-impute.knn(t(genos_add)) ## very few to impute due to duplicates
-genos_ready<-t(genos_ready$data)
 ## found some spaces in rownames of genos_ready
-grep(" ",rownames(genos_ready))
-rownames(genos_ready)[573]<-"Limonc"
-rownames(genos_ready)[66]<-"Coop30"
+grep(" ",rownames(genos_add))
+rownames(genos_add)[573]<-"Limonc"
+rownames(genos_add)[66]<-"Coop30"
 
 ## identify spaces in names
 grep(" ", rownames(genos_ready))
@@ -118,9 +75,9 @@ phenos$Name[grep(" ", phenos$Name)] ### Gala bukeye will be removed no problem
 ## need to merge clones at phenotypic levels and to remove them in genotype file
 identical=readRDS(file=paste0(odir, "/genos_modelled/clones_identified_in_geno_ready.rds"))
 to_remove=lapply(identical, function(x) x[[1]]) %>% unlist
-to_replace<-list(lapply(identical, function(x) rownames(genos_ready)[x[[1]]]) %>% unlist, lapply(identical, function(x) rownames(genos_ready)[x[[2]]]) %>% unlist)
-genos_ready<-genos_ready[-c(to_remove),]
-rownames(genos_ready)
+to_replace<-list(lapply(identical, function(x) rownames(genos_add)[x[[1]]]) %>% unlist, lapply(identical, function(x) rownames(genos_add)[x[[2]]]) %>% unlist)
+genos_add<-genos_add[-c(to_remove),]
+rownames(genos_add)
 ## replace phenos names
 phenos_test=phenos
 lapply(1:length(to_replace [[1]]), function(x) {
@@ -139,19 +96,71 @@ phenos<-phenos_test
 phenos$Name<-as.factor(phenos$Name)
 rm(phenos_test)
 ## keep only what has been phenotyped/genotyped reciprocally
-phenos$Name[which(!(phenos$Name %in% rownames(genos_ready)))] %>% as.character %>% unique
+phenos$Name[which(!(phenos$Name %in% rownames(genos_add)))] %>% as.character %>% unique
 length(levels(phenos$Name) )
-phenos$Name[which(!(levels(phenos$Name) %in% rownames(genos_ready)))] %>% as.character %>% unique %>% length
-phenos$Name[which((phenos$Name %in% rownames(genos_ready)))] %>% as.character %>% unique%>% length
-phenos<-phenos[which(phenos$Name %in% rownames(genos_ready)),]
+phenos$Name[which(!(levels(phenos$Name) %in% rownames(genos_add)))] %>% as.character %>% unique %>% length
+phenos$Name[which((phenos$Name %in% rownames(genos_add)))] %>% as.character %>% unique%>% length
+phenos<-phenos[which(phenos$Name %in% rownames(genos_add)),]
 phenos<-droplevels(phenos)
 phenos$Trial<-paste0(phenos$Location, phenos$Year)
-genos_ready<-genos_ready[which(rownames(genos_ready) %in% levels(phenos$Name)),]
-dim(genos_ready)
+genos_add<-genos_add[which(rownames(genos_add) %in% levels(phenos$Name)),]
+dim(genos_add)
 length(levels(phenos$Name))
+
+## stats on geno dataset
+## Data already filter MAF >0.05 and call rate > 0.5 for individuals
+# # Filter on MAF and call rate
+# 
+
+genos_fil<-apply(genos_add,2, function(x) as.numeric(x) %>% round(., digits=0))
+## reshape for snpStats - recode 0,1,2 and NA are 9
+genos_fil[which(is.na(genos_fil))]<-8
+rownames(genos_fil)<-rownames(genos_add)
+genos_fil<- genos_fil + 1
+genos_fil[1:5,1:5]
+table(genos_fil)
+genos_fil[genos_fil==3]=2
+genos_fil<-new("SnpMatrix", as.matrix(genos_fil) )
+# # if needed: change IDs
+# grep("MagGol", IDs)
+# rownames(genos_add)[132]<-"Magr"
+
+# ## filter data
+idsum<-row.summary(genos_fil)
+hist(idsum$Call.rate)
+min(idsum$Call.rate)
+mean(idsum$Heterozygosity)
+snpsum<-col.summary(genos_fil)
+summary(snpsum)
+hist(snpsum$MAF)
+
+hwe=snpsum$z.HWE
+quantile(hwe, probs=seq(0,1,0.25), na.rm=T)
+q=quantile(hwe, probs=c(1e-4, (1-1.1e-4)), na.rm=T)
+hist(snpsum$Call.rate)
+hist(snpsum$z.HWE)
+hist(snpsum$MAF)
+## filter for these values of Z
+snpsel=snpsum[which(snpsum$Call.rate>0.20 & snpsum$MAF>0.05 ),] ## do not filter on HWE
+nrow(snpsum)-nrow(snpsel)## filtering out 1941 Mks
+idsum<-row.summary(genos_fil)
+summary(idsum)
+
+## filter genos_add
+genos_add<-genos_add[,rownames(snpsel)]
+dim(genos_add)
+## impute
+
+genos_ready<-impute.knn(t(genos_add)) ## very few to impute due to duplicates
+genos_ready<-t(genos_ready$data)
+
+
+
 saveRDS(phenos, file=paste0(idir, "/phenos_ready_for_pred.rds"))
 saveRDS(genos_ready,file=paste0(idir, "/genos_imputed_for_pred.rds"))
 saveRDS(phenos_techrep,file=paste0(idir, "/phenos_with_reps_raw_filtered.rds"))
+
+
 ## useful lists
 
 families<-c("FjDe", "GDFj", "FjPi", "FjPL", "GaPi", "GaPL")

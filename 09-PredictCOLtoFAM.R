@@ -12,9 +12,9 @@ genos_ready=readRDS(paste0(idir, "/genos_imputed_for_pred.rds"))
 dim(phenos)
 dim(genos_ready)
 ## clusters from DAPC analysis
-clusters<-read.table(paste0(odir, "/genos_modelled/to_keep/assignments_COLL_DAPC.txt"), h=T)
+clusters<-read.table(paste0(odir, "/genos_modelled/assignments_COLL_DAPC.txt"), h=T)
 dim(clusters)
-cluster_fams<-read.table(paste0(odir, "/genos_modelled/to_keep/assignements_families.txt"), h=T)
+cluster_fams<-read.table(paste0(odir, "/genos_modelled/assignements_families.txt"), h=T)
 ## useful lists
 families<-c("FjDe", "GDFj", "FjPi", "FjPL", "GaPi", "GaPL")
 # lapply(families, function(x) grep(x, rownames(genos_ready)[rownames(genos_ready) %in% phenos$Name])) %>% unlist %>% length
@@ -40,7 +40,7 @@ summary(rownames(genos_ready)[WhichCOL] == rownames(phenos)[WhichCOL]) ## 258 wi
 
 traits=colnames(phenos)
 #traits=c("PC1","PC2")
-accuracy<-data.frame(FAM=rep(families, length(traits)), trait=lapply(traits, function(x) rep(x, NbFAM)) %>% unlist,accuracy=NA)
+accuracy<-data.frame(FAM=rep(families, length(traits)), trait=lapply(traits, function(x) rep(x, NbFAM)) %>% unlist,accuracy=NA, conf_low=NA, conf_high=NA)
 
 for (trait in traits) {
   for (fam in families) {
@@ -48,15 +48,17 @@ for (trait in traits) {
     res <- mixed.solve(y=phenos[WhichCOL,trait],Z=genos_ready[WhichCOL,])
     Y_VS_pred<- as.vector(genos_ready[WhichVS,] %*% as.matrix(res$u))
     acc<-cor(phenos[WhichVS, trait], Y_VS_pred, use="na.or.complete")
-    print(c(trait, fam, acc))
-    accuracy[which(accuracy$FAM==fam & accuracy$trait==trait), ] <- c(fam, trait, acc)
+    cor.test(phenos[WhichVS, trait], Y_VS_pred, conf.level = 0.95)
+    conf_int<-cor.test(phenos[WhichVS, trait], Y_VS_pred, conf.level = 0.95)$conf.int[c(1,2)]
+    print(c(trait, fam, acc, conf_int))
+    accuracy[which(accuracy$FAM==fam & accuracy$trait==trait), ] <- c(fam, trait, acc, conf_int)
     rm(res, WhichVS, Y_VS_pred)
   }
 }
 # write.table(accuracy, file=paste0(odir, "/predictions/COLLtoFAMs/rrBLUPs_PC12_new.txt"), quote=F, sep="\t")
 write.table(accuracy, file=paste0(odir, "/predictions/COLLtoFAMs/rrBLUPs_reps.txt"), quote=F, sep="\t")
 ## plot
-accuracy<-read.table(paste0(odir, "/predictions/COLLtoFAMs/rrBLUPs.txt"), h=T)
+accuracy<-read.table(paste0(odir, "/predictions/COLLtoFAMs/rrBLUPs_reps.txt"), h=T)
 png(file=paste0(odir, "/predictions/COLLtoFAMs/COLLtoFAM_no_clusters.png"), height=500, width=1000)
 ggplot(accuracy,aes( y=accuracy%>%as.numeric, x=trait))+
   geom_boxplot()+
@@ -69,23 +71,23 @@ dev.off()
 rm(accuracy)
 
 ## plot observed vs predicted for one trait
-trait="N_Peak_Force_BLUP"
 
 for (trait in traits){
-  pdf(file=paste0(odir, "/predictions/COLLtoFAMs/", trait, ".pdf"))
-  par(mfrow=c(2,3))
+  pdf(file=paste0(odir, "/predictions/COLLtoFAMs/", trait, ".pdf"), height=6, width=10)
+  par(mfrow=c(2,3), mar=rep(4,4,4,2))
   for (fam in families) {
     WhichVS<-c(1:NbID)[grep(fam, ids)]
     res <- mixed.solve(y=phenos[WhichCOL,trait],Z=genos_ready[WhichCOL,])
     Y_VS_pred<- as.vector(genos_ready[WhichVS,] %*% as.matrix(res$u))
-    myplot=plot(Y_VS_pred~phenos[WhichVS, trait], main=fam, xlab="Y-observed", ylab="Y-predicted")
+    myplot=plot(Y_VS_pred~phenos[WhichVS, trait], xlab="Y-observed", ylab="Y-predicted")
     print(myplot)
+    print(title(fam, adj = 0.5, line = 1))
     mylm=lm(Y_VS_pred~phenos[WhichVS, trait])
     abline(col="red", a=coefficients(mylm)[1], b=coefficients(mylm)[2])
   }
+  title(trait, outer = TRUE, line=-1, cex = 2)
   dev.off()
 }
-
 
 
 ## try with clusters (as fix effect)
@@ -97,7 +99,8 @@ clusters<-clusters[rownames(genos_ready)[WhichCOL],"Cluster"] %>% as.matrix
 rownames(clusters)<-rownames(genos_ready)[WhichCOL]
 clusters<-class.ind(clusters)
 
-accuracy<-data.frame(FAM=rep(families, length(traits)), trait=lapply(traits, function(x) rep(x, NbFAM)) %>% unlist,accuracy=NA)
+accuracy<-data.frame(FAM=rep(families, length(traits)), trait=lapply(traits, function(x) rep(x, NbFAM)) %>% unlist,accuracy=NA, conf_low=NA, conf_high=NA)
+
 
 cluster_fams$cluster<-factor(cluster_fams$cluster, levels=1:6)
 rownames(cluster_fams)<-cluster_fams$Name
@@ -110,23 +113,23 @@ for (trait in traits) {
     res <- mixed.solve(y=phenos[WhichCOL,trait],Z=genos_ready[WhichCOL,], X=clusters) ## cluster as fix effect
     Y_VS_pred<- as.vector(genos_ready[WhichVS,] %*% as.matrix(res$u) + cluster_FAM %*% res$beta) ## add effect of cluster
     acc<-cor(phenos[WhichVS, trait], Y_VS_pred, use="na.or.complete")
-    print(c(trait, fam, acc))
-    accuracy[which(accuracy$FAM==fam & accuracy$trait==trait), ] <- c(fam, trait, acc)
+    conf_int<-cor.test(phenos[WhichVS, trait], Y_VS_pred, conf.level = 0.95)$conf.int[c(1,2)]
+    print(c(trait, fam, acc, conf_int))
+    accuracy[which(accuracy$FAM==fam & accuracy$trait==trait), ] <- c(fam, trait, acc, conf_int)
     rm(res, WhichVS, Y_VS_pred)
   }
 }
 
-# write.table(accuracy, file=paste0(odir, "/predictions/COLLtoFAMs/rrBLUPs_clusters_fix_new_PC12.txt"), quote=F, sep="\t")
-write.table(accuracy, file=paste0(odir, "/predictions/COLLtoFAMs/rrBLUPs_clusters_fix.txt"), quote=F, sep="\t")
+
+write.table(accuracy, file=paste0(odir, "/predictions/COLLtoFAMs/rrBLUPs_clusters_fix_reps.txt"), quote=F, sep="\t")
 
 accuracy$accuracy<- accuracy$accuracy %>% as.character %>% as.numeric
-tail(accuracy)
 
 png(file=paste0(odir, "/predictions/COLLtoFAMs/COLLtoFAM_with_clusters.png"), height=500, width=1000)
 ggplot(accuracy,aes( y=accuracy, x=trait))+
   geom_boxplot()+
   facet_grid(~FAM)+
-  labs(x="Trait", title="Predictions rrBLUP COLL to FAMs with 5 clusters", y="Predictive ability")+
+  labs(x="Trait", title="Predictions rrBLUP COLL to FAMs with 6 clusters", y="Predictive ability")+
   theme(axis.text.x=element_text(angle = 45,  hjust = 1))+
   scale_y_continuous(limits = c(-0.5, 1))
 dev.off()

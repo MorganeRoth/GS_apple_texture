@@ -90,7 +90,7 @@ lapply(traits, myfun)
 ## final version of phenos: all traits work with the selected model
 for (trait in traits){ myfun(trait)} 
 # for (trait in traits[2]){ myfun0(trait)} 
-png(file=paste0(odir, "/phenos_modelled/BLUPs_all_traits_trial_nested_effects.png"), height=600, width=800 )
+png(file=paste0(odir, "/phenos_modelled/BLUPs_all_traits_5apples_trial_fix.png"), height=600, width=800 )
 par(mfrow=c(3,4))
 lapply(traits, function(x) print(hist(blups_all_traits[,x], main="", xlab=x))) %>% print
 dev.off()
@@ -111,23 +111,81 @@ dev.off()
 write.table(blups_all_traits,paste0(odir, "/phenos_modelled/BLUPs_all_traits_5apples_trial_fix.txt"), sep="\t", quote=F, row.names=T)
 
 ## extract heritabilities- need to check code again
+## mean number of reps 
+
+mean_reps<-phenos %>% group_by(Name) %>% tally() %>% summarize(mean = mean(n, na.rm=TRUE))
 
 myherit<-function(trait){
-  mylm_sel<-lmer(data=phenos, get(trait) ~ (1|Name) +Trial)
+  data=phenos[,c("Name", trait, "Trial")] %>% droplevels
+  mean_reps<-data %>% group_by(Name, Trial) %>% tally() %>% summarize(mean = mean(n, na.rm=TRUE))
+  mylm_sel<-lmer(data=data, get(trait) ~ (1|Name) +Trial)
   myvar<-VarCorr(mylm_sel,comp=c("Variance")) %>% as.data.frame()
   genvar<-myvar[which(myvar$grp=="Name"), "vcov"]
   envvar<-myvar[which(myvar$grp=="Name"), "vcov"]+
     # myvar[which(myvar$grp=="Name:Trial"), "vcov"]+
     # myvar[which(myvar$grp=="Trial"), "vcov"]/length(levels(phenos$Trial))+
-    myvar[which(myvar$grp=="Residual"), "vcov"]
+    myvar[which(myvar$grp=="Residual"), "vcov"]/mean_reps
   htwo<- genvar/envvar 
   return(htwo)
 }
 
-herit_all<-lapply(traits, myherit)
-names(herit_all)<-traits
+herit_all<-lapply(traits, myherit) %>% as.data.frame() %>% t
+rownames(herit_all)<-traits
 herit_all
+write.table(herit_all,file=paste0(odir, "/phenos_modelled/heritabilities.txt"), quote=F)
 
+WhichCOL<-c(1:nrow(phenos))[-c(lapply(families, function(x) grep(x,phenos$Name))  %>% unlist)]
+length(WhichCOL)
+dim(phenos)
+myheritCOLL<-function(trait){
+  data=phenos[WhichCOL,c("Name", trait, "Trial")] %>% droplevels
+  mean_reps<-data %>% group_by(Name, Trial) %>% tally() %>% summarize(mean = mean(n, na.rm=TRUE))
+  mylm_sel<-lmer(data=data, get(trait) ~ (1|Name) +Trial)
+  myvar<-VarCorr(mylm_sel,comp=c("Variance")) %>% as.data.frame()
+  genvar<-myvar[which(myvar$grp=="Name"), "vcov"]
+  envvar<-myvar[which(myvar$grp=="Name"), "vcov"]+
+    # myvar[which(myvar$grp=="Name:Trial"), "vcov"]+
+    # myvar[which(myvar$grp=="Trial"), "vcov"]/length(levels(phenos$Trial))+
+    myvar[which(myvar$grp=="Residual"), "vcov"]/mean_reps
+  htwo<- genvar/envvar 
+  return(htwo)
+}
+
+
+herit_allCOLL<-lapply(traits, myheritCOLL) %>% as.data.frame() %>% t
+rownames(herit_allCOLL)<-traits
+herit_allCOLL 
+write.table(herit_allCOLL,file=paste0(odir, "/phenos_modelled/heritabilitiesCOLLonly.txt"), quote=F)
+rm(WhichCOL)
+
+myheritFAM<-function(trait, fam){
+  whichfam<-c(1:nrow(phenos))[ grep(fam,phenos$Name) ]
+  data=phenos[whichfam,c("Name", trait, "Trial")] %>% droplevels
+  print(levels(data$Name))
+  mean_reps<-data %>% group_by(Name, Trial) %>% tally() %>% summarize(mean = mean(n, na.rm=TRUE))
+  mylm_sel<-lmer(data=data, get(trait) ~ (1|Name) +Trial)
+  myvar<-VarCorr(mylm_sel,comp=c("Variance")) %>% as.data.frame()
+  genvar<-myvar[which(myvar$grp=="Name"), "vcov"]
+  envvar<-myvar[which(myvar$grp=="Name"), "vcov"]+
+    # myvar[which(myvar$grp=="Name:Trial"), "vcov"]+
+    # myvar[which(myvar$grp=="Trial"), "vcov"]/length(levels(phenos$Trial))+
+    myvar[which(myvar$grp=="Residual"), "vcov"]/mean_reps
+  htwo<- genvar/envvar 
+  return(unlist(c(trait, fam,htwo)))
+}
+myheritFAM(traits[1], "GaPL")
+ll<-mapply(function(x,y) myheritFAM(x,y), rep(traits, length(families)), lapply(families, function(x) rep(x,length(traits)))%>% unlist)
+ll<-as.data.frame(ll) %>% t 
+colnames(ll)<-c("trait", "family", "heritability")
+write.table(ll, file=paste0(odir, "/phenos_modelled/heritabilities_families.txt"), quote=F, sep="\t")
+## means
+mymeans<-data.frame(Mean=lapply( traits, function(x) phenos[,c("Name", x, "Trial")] %>% group_by(Name, Trial) %>% summarize(mean = mean(get(x), na.rm=TRUE))) %>% unlist ,
+                   SD=lapply( traits, function(x) phenos[,c("Name", x, "Trial")] %>% group_by(Name, Trial) %>% summarize(sd = sd(get(x), na.rm=TRUE))) %>% unlist)
+rownames(mymeans)<-traits
+mymeans
+allsummaries<-cbind(herit_all, herit_allCOLL, mymeans)
+head(allsummaries)
+write.table(allsummaries,file=paste0(odir, "/phenos_modelled/all_summaries.txt"), quote=F)
 ################################
 ### Get LS means from phenos ###
 ################################
@@ -174,11 +232,10 @@ print("corrplot LS/Blups plotted")
 # Get PC1 and PC2 from phenos
 ## Need to impute missing data ? there are here but keep script like that in case
 
-## in case we start from here load data
-# phenos<-read.table(paste0(odir, "/phenos_modelled/BLUPs_all_traits_5apples_trial_fix.txt"), h=T, row.names = id_pheno$x %>% as.character())[,-c(15,14)]
-
 phenos<-blups_all_traits
-phenos<-phenos[,-1]
+## in case we start from here load data
+# phenos<-read.table(paste0(odir, "/phenos_modelled/BLUPs_PC1_PC2_for_pred.txt"), h=T)[,-c(13,14)]
+
 # colnames(phenos)=lapply(colnames(phenos), function(x) substr(x, 0,(nchar(x)-5))) %>% unlist
 traits=colnames(phenos)
 
@@ -195,13 +252,23 @@ pca_pheno<-data.frame(PC1=res.pca$ind$coord[,1] , row.names=rownames(res.pca$ind
 
 ## plot graph of variables
 res.pca$var$coord
-fviz_pca_var(res.pca,  habillage= as.factor(MYcols),palette=c("darkblue", "red"))
-# traits_short=c("IF", "MF","FF", "NPF", "Area", "FLD", "YM", "MF", "ANP", "AMP", "ALD", "AMP")
 MYcols<-c(rep(2, 4), rep(3, 8))
-pdf(file=paste0(odir, "/phenos_modelled/PCA_variables_with_sup_fams.pdf"), height=6, width=6)
-fviz_pca_var(res.pca,  habillage= as.factor(MYcols),palette=c("darkblue", "red"),label="none")+ 
+fviz_pca_var(res.pca,  habillage= as.factor(MYcols),palette=c("darkblue", "red"))
+
+vargraph<-fviz_pca_var(res.pca,  habillage= as.factor(MYcols),palette=c("darkblue", "red"),label="none")+ 
   geom_text(size=2.5,aes(label=c(paste0("     ",c(2,3,4,1)), "    9 ", "       7", "    6", "   12", "      11", "           -10", "     5", "    8")))+
-  theme(legend.position = "none")
+  theme(legend.position = "none")+
+  labs(title="", x="PC1 (80.5%)", y="PC2 (12.7%)")+
+  xlim(c(-1.1, 1.1))
+
+pdf(file=paste0(odir, "/phenos_modelled/PCA_variables_with_sup_fams_paper.pdf"), 
+    width= 3.54, height=3.54,fonts="Helvetica", pointsize=10, colormodel = "cmyk", )
+par(mar=rep(4,4))
+print(vargraph)
+dev.off()
+tiff(file=paste0(odir, "/phenos_modelled/PCA_variables_with_sup_fams_paper.tiff"), 
+     width= 3.54, height=3.54, fonts="Helvetica", pointsize=10, units="in", res=300 )
+print(vargraph)
 dev.off()
 ## plot with groups
 WhichCOL<-c(1:nrow(phenos))[-c(lapply(families, function(x) grep(x,rownames(phenos)) ) %>% unlist)]
@@ -238,25 +305,8 @@ ggplot(data=res, aes( x=PC1, y=PC2,color=Population))+
   labs(x="PC1 (80.5%)", y="PC2 (12.7%)")
 dev.off()
 
-pdf(file=paste0(odir, "/phenos_modelled/PCA_all_traits_fam_sup_reps_ellipses.pdf"), width=6, height=4)
-ggplot(data=res[which(res$Population=="Collection"),], aes( x=PC1, y=PC2,color=Population))+
-  geom_point()+
-  scale_color_manual(values=c("black","red", "lightgreen", "skyblue", "orange", "yellow", "purple"))+
-  theme_minimal()+
-  geom_abline(slope=0, intercept=0, linetype=2) + 
-  geom_vline(xintercept=0, linetype=2) +
-  labs(x="PC1 (80.5%)", y="PC2 (12.7%)")+
-  stat_ellipse(data=res[which(!(res$Population=="Collection")),] , aes( x=PC1, y=PC2,color=Population),
-               type="norm")
-dev.off()
-## plot selected individuals
-whichParents<-which(rownames(res) %in% c("FuMoHo", "Pinova", "CriPin", "RoyGal", "GolDel", "Delear"))
-whichFAM<-lapply(families, function(x) grep(x,rownames(res)) ) %>% unlist
-subgroup=res[c(whichFAM,whichParents),]
-pdf(file=paste0(odir, "/phenos_modelled/PCA_selec_parents_prog_fam_sup.pdf"), width=6, height=4)
-mydata<-res[whichParents,]
-mydata[which(mydata$ID=="FuMoHo"),c("PC1", "PC2")]=c(3.7, 1.55)
-ggplot(data=subgroup, aes( x=PC1, y=PC2,color=Population))+
+
+idgraph<-ggplot(data=res[which(res$Population=="Collection"),], aes( x=PC1, y=PC2,color=Population))+
   geom_point()+
   scale_color_manual(values=c("black","red", "lightgreen", "skyblue", "orange", "yellow", "purple"))+
   theme_minimal()+
@@ -264,10 +314,51 @@ ggplot(data=subgroup, aes( x=PC1, y=PC2,color=Population))+
   geom_vline(xintercept=0, linetype=2) +
   labs(x="PC1 (80.5%)", y="PC2 (12.7%)")+
   theme(legend.position = "none")+
-  geom_text(data=mydata,
-            aes( x=PC1, y=PC2+0.3,label=ID))
-dev.off()
+  stat_ellipse(data=res[which(!(res$Population=="Collection")),] , aes( x=PC1, y=PC2,color=Population),
+               type="norm", size=1)
 
+pdf(file=paste0(odir, "/phenos_modelled/PCA_COLL_fams_ellipses_paper.pdf"), 
+    width= 3.54, height=3.54,fonts="Helvetica", pointsize=10, colormodel = "cmyk", )
+print(idgraph)
+dev.off()
+tiff(file=paste0(odir, "/phenos_modelled/PCA_COLL_fams_ellipses_paper.tiff"), 
+     width= 3.54, height=3.54, fonts="Helvetica", pointsize=10, units="in", res=300 )
+print(idgraph)
+dev.off()
+## plot selected individuals
+whichParents<-which(rownames(res) %in% c("FuMoHo", "Pinova", "CriPin", "RoyGal", "GolDel", "Delear"))
+whichFAM<-lapply(families, function(x) grep(x,rownames(res)) ) %>% unlist
+subgroup=res[c(whichFAM,whichParents),]
+# pdf(file=paste0(odir, "/phenos_modelled/PCA_selec_parents_prog_fam_sup.pdf"), width=6, height=4)
+mydata<-res[whichParents,]
+mydata$ID<-as.character(mydata$ID)
+mydata$ID[c(1,2,3,4,6)]<-c("Pink Lady","Delearly", "Fuji", "Golden Delicious", "Royal Gala")
+# mydata[which(mydata$ID=="FuMoHo"),c("PC1", "PC2")]=c(3.7, 1.55)  
+famgraph<-ggplot(data=subgroup, aes( x=PC1, y=PC2,color=Population))+
+  geom_point(size=1)+
+  scale_color_manual(values=c("black","red", "lightgreen", "skyblue", "orange", "yellow", "purple"))+
+  # scale_color_startrek() +
+  theme_minimal()+
+  geom_abline(slope=0, intercept=0, linetype=2) + 
+  geom_vline(xintercept=0, linetype=2) +
+  labs(x="PC1 (80.5%)", y="PC2 (12.7%)")+
+  theme(legend.position = "none")+
+  # theme(legend.position = "bottom",
+  #       legend.title = element_blank(),
+  #       legend.key.size = unit(0.2,"in"),
+  #       legend.box.spacing = unit(0,"in"),
+  #       legend.box.margin = margin(0,1.2,0,0,unit="cm"))+
+  guides(colour = guide_legend(override.aes = list(size=2), ncol = 7))+
+  geom_text(data=mydata,
+            aes( x=PC1, y=PC2+0.2,label=ID), fontface = "bold",size=3,show.legend = FALSE)
+pdf(file=paste0(odir, "/phenos_modelled/PCA_COLL_fams_dots_paper.pdf"), 
+    width= 3.54, height=3.54, fonts="Helvetica", pointsize=10, colormodel = "cmyk", )
+print(famgraph)
+dev.off()
+tiff(file=paste0(odir, "/phenos_modelled/PCA_COLL_fams_dots_paper.tiff"), 
+     width= 3.54, height=3.54, fonts="Helvetica", pointsize=10, units="in", res=300 )
+print(famgraph)
+dev.off()
 phenos[rownames(res),"PC1"]<-res$PC1
 phenos[rownames(res),"PC2"]<-res$PC2
 ## write phenos ready for prediction
@@ -328,6 +419,33 @@ ggplot(data=mm, aes(x=value, color=pop)) +
   theme(axis.text.x = element_text(angle = 45, hjust=1))
 
 dev.off()
+
+###############################
+##### Save correlations #######
+###############################
+
+phenos<-read.table(file=paste0(odir, "/phenos_modelled/BLUPs_PC1_PC2_for_pred.txt"), h=T)
+write.table(cor(phenos), file=paste0(odir, "/phenos_modelled/correlations_all_traits_PC12.txt"), quote=F, sep="\t")
+
+#######################################
+##### Outliers for fruit texture ######
+#######################################
+WhichCOL<-c(1:nrow(phenos))[-c(lapply(families, function(x) grep(x,rownames(phenos)))  %>% unlist)]
+coll<-phenos[which(rownames(phenos) %in% rownames(phenos)[WhichCOL]),]
+rownames(coll[which(coll$PC1 == max(coll$PC1)),])
+coll[which(coll$PC1 == max(coll$PC1)),"PC1"]
+coll[which(coll$PC1 == max(coll$PC1)),"PC1"]
+rownames(coll[which(coll$PC2 == max(coll$PC2)),])
+coll[which(coll$PC2 == max(coll$PC2)),"PC2"]
+coll[which(coll$PC2 > 1.5 & coll$PC1 >4),c("PC1","PC2")]
+
+coll[which(coll$PC2 + coll$PC1 == max(coll$PC2 + coll$PC1)),c("PC1","PC2")]
+
+coll[which(coll$PC2 == max(coll$PC2)),"PC1"]
+rownames(coll[which(coll$PC2 == min(coll$PC2)),])
+coll[which(coll$PC2 == min(coll$PC2)),"PC2"]
+coll[which(coll$PC2 == min(coll$PC2)),"PC1"]
+rownames(phenos[which(phenos$PC1 == max(phenos$PC1) & rownames(phenos) %in% rownames(phenos)[WhichCOL]),])
 
 
 # Purge obsolete variables
