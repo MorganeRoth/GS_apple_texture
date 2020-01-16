@@ -1,14 +1,13 @@
-cat("Modelling data...\n")
+cat("Cross-validations within the collection...\n")
 
-# dir.create(paste0(odir, "/predictions"), showWarnings = FALSE, recursive = TRUE)
+dir.create(paste0(odir, "/predictions"), showWarnings = FALSE, recursive = TRUE)
 dir.create(paste0(odir, "/predictions/COLLtoCOLL"), showWarnings = FALSE, recursive = TRUE)
 
-## if import, model phenos, mnodel genos scripts are skipped, load data here
-# id_pheno<-read.table(paste0(odir, "/phenos_modelled/rownames_phenos.txt"))
-## problem with duplicated rowname that I do not understand, use id_pheno to replace them (saved with phenos)
+#######################################
+## IF YOU START FROM HERE, LOAD DATA ##
+#######################################
+## pheno and geno
 phenos<-read.table(paste0(odir, "/phenos_modelled/BLUPs_PC1_PC2_for_pred.txt"), h=T)
-summary(phenos)
-# phenos<-phenos[,-1]
 genos_ready=readRDS(paste0(idir, "/genos_imputed_for_pred.rds"))
 ## clusters from DAPC analysis
 clusters<-read.table(paste0(odir, "/genos_modelled/assignments_COLL_DAPC.txt"), h=T)
@@ -30,15 +29,20 @@ nrow(phenos) == nrow(genos_ready)
 families<-c("FjDe", "FjPi", "FjPL", "GDFj", "GaPi", "GaPL")
 NbFAM<-length(families)
 WhichCOL<-c(1:NbID)[-c(lapply(families, function(x) grep(x, ids) ) %>% unlist)]
-summary(rownames(genos_ready)[WhichCOL] == rownames(phenos)[WhichCOL]) ## 259 with same names
 
+# List all traits
 traits=colnames(phenos)
 
-## help on 5-fold design: https://stats.stackexchange.com/questions/61090/how-to-split-a-data-set-to-do-10-fold-cross-validation
+cat("IDs in pheno and geno file:\n")
+summary(rownames(genos_ready)[WhichCOL] == rownames(phenos)[WhichCOL]) %>% print ## 259 with same names
+
+## help to understand 5-fold design available here: https://stats.stackexchange.com/questions/61090/how-to-split-a-data-set-to-do-10-fold-cross-validation
 nREPs=100
 accuracy<-data.frame(Rep=rep(1:nREPs, length(traits)), trait=lapply(traits, function(x) rep(x, nREPs)) %>% unlist,
                      accuracy_Pearson=NA, accuracy_Spearman)
 count=0
+
+######## PREDICT WITHOUT CLUSTER EFFECT #########
 for (trait in traits) {
 # for (trait in c("PC1","PC2")) {
   for (REP in 1:nREPs) {
@@ -62,24 +66,19 @@ for (trait in traits) {
   }
 }    
 write.table(accuracy, file=paste0(odir, "/predictions/COLLtoCOLL/accuracy_5fold_rrBLUP_pearson_spearman.txt"), quote=F, sep="\t")
-# write.table(accuracy, file=paste0(odir, "/predictions/COLLtoCOLL/accuracy_5fold_rrBLUP.txt"), quote=F, sep="\t")
 
-# write.table(accuracy, file=paste0(odir, "/predictions/COLLtoCOLL/accuracy_5fold_rrBLUP_PC12_new_values.txt"), quote=F, sep="\t")
-
-# boxplot
+## quick boxplot
 accuracy<-read.table(paste0(odir, "/predictions/COLLtoCOLL/accuracy_5fold_rrBLUP.txt"))
-
-png(file=paste0(odir, "/predictions/COLLtoCOLL/COLLtoCOLL_5fold_", nreps, "_reps.png"), height=500, width=800)
+# png(file=paste0(odir, "/predictions/COLLtoCOLL/COLLtoCOLL_5fold_", nreps, "_reps.png"), height=500, width=800)
 ggplot(accuracy,aes( y=accuracy, x=trait))+
   geom_boxplot()+
   labs(x="Trait", title="Predictions rrBLUP 100 CVs 5-fold", y="Predictive ability")+
   theme(axis.text.x=element_text(angle = 45,  hjust = 1))+ 
   scale_y_continuous(limits = c(0, 1))
-dev.off()
+# dev.off()
 
-## add cluster effect
-## try with clusters (as fix effect)
-head(clusters)
+######## PREDICT WITH CLUSTER EFFECT #########
+
 clusters<-as.data.frame(clusters)
 clusters$Cluster<-as.factor(clusters$Cluster)
 clusters.mat<-class.ind(clusters$Cluster)
@@ -89,9 +88,7 @@ nREPs=100
 accuracy<-data.frame(Rep=rep(1:nREPs, length(traits)), trait=lapply(traits, function(x) rep(x, nREPs)) %>% unlist,accuracy=NA)
 count=0
 
-# traits=c("PC1", "PC2")
-# accuracy<-data.frame(Rep=rep(1:nREPs, length(traits)), trait=lapply(traits, function(x) rep(x, nREPs)) %>% unlist,accuracy=NA)
-
+accuracy<-data.frame(Rep=rep(1:nREPs, length(traits)), trait=lapply(traits, function(x) rep(x, nREPs)) %>% unlist,accuracy=NA)
 for (trait in traits) {
   print(trait)
   for (REP in 1:nREPs) {
@@ -117,7 +114,6 @@ for (trait in traits) {
   
 }
 
-summary(accuracy)
 accuracy<-read.table(paste0(odir, "/predictions/COLLtoCOLL/rrBLUPs_5fold_6clusters_fix.txt"))
 
 ## architecture of traits

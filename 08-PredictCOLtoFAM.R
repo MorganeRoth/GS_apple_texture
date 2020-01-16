@@ -1,16 +1,12 @@
-cat("Modelling data...\n")
+cat("Predicting families with the collection...\n")
 
 dir.create(paste0(odir, "/predictions"), showWarnings = FALSE, recursive = TRUE)
 dir.create(paste0(odir, "/predictions/COLLtoFAMs"), showWarnings = FALSE, recursive = TRUE)
 
-## if import, model phenos, mnodel genos scripts are skipped, load data here
-# id_pheno<-read.table(paste0(odir, "/phenos_modelled/rownames_phenos.txt"))
-## problem with duplicated rowname that I do not understand, use id_pheno to replace them (saved with phenos)
+## LOAD DATA IF YOU START FROM HERE ##
 phenos<-read.table(paste0(odir, "/phenos_modelled/BLUPs_PC1_PC2_for_pred.txt"), h=T)
-
 genos_ready=readRDS(paste0(idir, "/genos_imputed_for_pred.rds"))
-dim(phenos)
-dim(genos_ready)
+
 ## clusters from DAPC analysis
 clusters<-read.table(paste0(odir, "/genos_modelled/assignments_COLL_DAPC.txt"), h=T)
 dim(clusters)

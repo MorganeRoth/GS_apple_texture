@@ -6,18 +6,26 @@
 .Ruserdata
 
 config.yml
-*.html
-*.pdf
-*.rds
-*.png
-*.txt
 
+
+### some scripts not needed for publication
+old*
 04bis*
 
+06-ModelGenos_unpublished_more_complete.R
+xx-VarianceAnalysis_not_for_paper.R
+
+*not_for_paper
+
+## files not needed on any GIT
 **/input/
 **/output/
 lib/
 secret/**
 temp/
-
+*.html
+*.pdf
+*.rds
+*.png
+*.txt
 !.keep
