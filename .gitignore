@@ -12,6 +12,8 @@ config.yml
 *.png
 *.txt
 
+04bis*
+
 **/input/
 **/output/
 lib/

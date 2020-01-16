@@ -20,8 +20,11 @@ source("03-LoadFunc.R")
 
 # Configuration
 config <- config::get()
-# 
-# ## if you want to start directly with predictions go to each specific script
+
+## the subsequent steps should be run separately by the user by calling each specific script
+
+## for prediction scripts, data are loaded within each script
+
 # ## and load data from there
 # # Wrangle
 # ## Import
