@@ -11,10 +11,10 @@ config.yml
 ### some scripts not needed for publication
 old*
 04bis*
-
+07-Predict_COLLtoCOLL_not_for_paper.R
 06-ModelGenos_unpublished_more_complete.R
 xx-VarianceAnalysis_not_for_paper.R
-
+_*
 *not_for_paper
 
 ## files not needed on any GIT
