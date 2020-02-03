@@ -1,0 +1,2 @@
+default:
+  tol: !expr sqrt(.Machine$double.eps)
