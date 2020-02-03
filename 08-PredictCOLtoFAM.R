@@ -7,7 +7,7 @@ dir.create(paste0(odir, "/predictions/COLLtoFAMs"), showWarnings = FALSE, recurs
 phenos<-read.table(paste0(odir, "/phenos_modelled/BLUPs_PC1_PC2_for_pred.txt"), h=T)
 genos_ready=readRDS(paste0(idir, "/genos_imputed_for_pred.rds"))
 
-## clusters from DAPC analysis
+## load clusters from DAPC analysis
 clusters<-read.table(paste0(odir, "/genos_modelled/assignments_COLL_DAPC.txt"), h=T)
 dim(clusters)
 cluster_fams<-read.table(paste0(odir, "/genos_modelled/assignements_families.txt"), h=T)

@@ -51,7 +51,6 @@ accuracy<-data.frame(Rep=rep(1:nREPs, length(traits)), trait=lapply(traits, func
                      accuracy_Pearson=NA, accuracy_Spearman)
 count=0
 for (trait in traits) {
-# for (trait in c("PC1","PC2")) {
   for (REP in 1:nREPs) {
     folds <- cut(seq(1,length(WhichCOL)),breaks=5,labels=FALSE) ## create folds
     ids_shuffle<-sample(WhichCOL) ## randomize ids
@@ -74,27 +73,18 @@ for (trait in traits) {
 }    
 write.table(accuracy, file=paste0(odir, "/predictions/COLLtoCOLL/accuracy_5fold_rrBLUP_pearson_spearman.txt"), quote=F, sep="\t")
 
-## quick boxplot
-accuracy<-read.table(paste0(odir, "/predictions/COLLtoCOLL/accuracy_5fold_rrBLUP.txt"))
-# png(file=paste0(odir, "/predictions/COLLtoCOLL/COLLtoCOLL_5fold_", nreps, "_reps.png"), height=500, width=800)
-ggplot(accuracy,aes( y=accuracy, x=trait))+
-  geom_boxplot()+
-  labs(x="Trait", title="Predictions rrBLUP 100 CVs 5-fold", y="Predictive ability")+
-  theme(axis.text.x=element_text(angle = 45,  hjust = 1))+ 
-  scale_y_continuous(limits = c(0, 1))
-# dev.off()
-
+##############################################
 ######## PREDICT WITH CLUSTER EFFECT #########
+##############################################
 
+## prepare data and result matrix
 clusters<-as.data.frame(clusters)
 clusters$Cluster<-as.factor(clusters$Cluster)
 clusters.mat<-class.ind(clusters$Cluster)
 rownames(clusters.mat)<-clusters$Name
 summary(rownames(clusters.mat)== rownames(genos_ready)[WhichCOL])
 nREPs=100
-accuracy<-data.frame(Rep=rep(1:nREPs, length(traits)), trait=lapply(traits, function(x) rep(x, nREPs)) %>% unlist,accuracy=NA)
 count=0
-
 accuracy<-data.frame(Rep=rep(1:nREPs, length(traits)), trait=lapply(traits, function(x) rep(x, nREPs)) %>% unlist,accuracy=NA)
 for (trait in traits) {
   print(trait)
