@@ -7,6 +7,7 @@ dir.create(paste0(odir, "/predictions/COLLtoCOLL"), showWarnings = FALSE, recurs
 #######################################
 ## IF YOU START FROM HERE, LOAD DATA ##
 #######################################
+source("00-Main.R")
 ## pheno and geno
 phenos<-read.table(paste0(odir, "/phenos_modelled/BLUPs_PC1_PC2_for_pred.txt"), h=T)
 genos_ready=readRDS(paste0(idir, "/genos_imputed_for_pred.rds"))
@@ -38,12 +39,17 @@ cat("IDs in pheno and geno file:\n")
 summary(rownames(genos_ready)[WhichCOL] == rownames(phenos)[WhichCOL]) %>% print ## 259 with same names
 
 ## help to understand 5-fold design available here: https://stats.stackexchange.com/questions/61090/how-to-split-a-data-set-to-do-10-fold-cross-validation
+## repeat 5-fold nREPs times
 nREPs=100
+
+#################################################
+######## PREDICT WITHOUT CLUSTER EFFECT #########
+#################################################
+
+## store results in accuracy dataframe
 accuracy<-data.frame(Rep=rep(1:nREPs, length(traits)), trait=lapply(traits, function(x) rep(x, nREPs)) %>% unlist,
                      accuracy_Pearson=NA, accuracy_Spearman)
 count=0
-
-######## PREDICT WITHOUT CLUSTER EFFECT #########
 for (trait in traits) {
 # for (trait in c("PC1","PC2")) {
   for (REP in 1:nREPs) {
