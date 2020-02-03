@@ -2,11 +2,14 @@
 ._.DS_Store
 .Rproj.user
 .Rhistory
+.Rprofile
 .RData
 .Ruserdata
+.gitignore
+*.Rproj
+config.yml*
 
-config.yml
-
+README.md
 
 ### some scripts not needed for publication
 old*
