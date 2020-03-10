@@ -4,9 +4,9 @@
 .Rhistory
 .RData
 .Ruserdata
-
-config.yml
-
+.gitignore
+config.yml*
+*Rproj
 
 ### some scripts not needed for publication
 old*

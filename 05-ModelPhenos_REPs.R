@@ -8,7 +8,7 @@ dir.create(paste0(odir, "/phenos_modelled"), showWarnings = FALSE, recursive = T
 
 cat("Getting BLUPs")
 
-### year nested in genotypes
+
 ### try different models
 
 phenos=readRDS(paste0(idir, "/phenos_ready_for_pred.rds"))
@@ -125,14 +125,31 @@ myherit<-function(trait){
     # myvar[which(myvar$grp=="Name:Trial"), "vcov"]+
     # myvar[which(myvar$grp=="Trial"), "vcov"]/length(levels(phenos$Trial))+
     myvar[which(myvar$grp=="Residual"), "vcov"]/mean_reps
-  htwo<- genvar/envvar 
+  htwo<- genvar/envvar
   return(htwo)
+
 }
 
 herit_all<-lapply(traits, myherit) %>% as.data.frame() %>% t
 rownames(herit_all)<-traits
 herit_all
 write.table(herit_all,file=paste0(odir, "/phenos_modelled/heritabilities.txt"), quote=F)
+
+myherit_BS<-function(trait){
+  data=phenos[,c("Name", trait, "Trial")] %>% droplevels
+  mylm_sel3<-lmer(data=data, get(trait) ~ (1|Name) )
+  myvar3<-VarCorr(mylm_sel3,comp=c("Variance")) %>% as.data.frame()
+  genvar3<-myvar3[which(myvar3$grp=="Name"), "vcov"]
+  envvar3<-myvar3[which(myvar3$grp=="Name"), "vcov"]+ myvar3[which(myvar3$grp=="Residual"), "vcov"]
+  htwo3<- genvar3/envvar3
+  print(htwo3)
+  return(htwo3)
+
+}
+herit_all2<-lapply(traits, myherit_BS) %>% as.data.frame() %>% t
+rownames(herit_all2)<-traits
+herit_all2
+write.table(herit_all2,file=paste0(odir, "/phenos_modelled/heritabilities_BS_revised.txt"), quote=F)
 
 WhichCOL<-c(1:nrow(phenos))[-c(lapply(families, function(x) grep(x,phenos$Name))  %>% unlist)]
 length(WhichCOL)
@@ -151,11 +168,30 @@ myheritCOLL<-function(trait){
   return(htwo)
 }
 
-
 herit_allCOLL<-lapply(traits, myheritCOLL) %>% as.data.frame() %>% t
 rownames(herit_allCOLL)<-traits
 herit_allCOLL 
 write.table(herit_allCOLL,file=paste0(odir, "/phenos_modelled/heritabilitiesCOLLonly.txt"), quote=F)
+rm(WhichCOL)
+WhichCOL<-c(1:nrow(phenos))[-c(lapply(families, function(x) grep(x,phenos$Name))  %>% unlist)]
+length(WhichCOL)
+dim(phenos)
+myheritCOLL_BS<-function(trait){
+  data=phenos[WhichCOL,c("Name", trait, "Trial")] %>% droplevels
+  mylm_sel3<-lmer(data=data, get(trait) ~ (1|Name) )
+  myvar3<-VarCorr(mylm_sel3,comp=c("Variance")) %>% as.data.frame()
+  genvar3<-myvar3[which(myvar3$grp=="Name"), "vcov"]
+  envvar3<-myvar3[which(myvar3$grp=="Name"), "vcov"]+ myvar3[which(myvar3$grp=="Residual"), "vcov"]
+  htwo3<- genvar3/envvar3
+  print(htwo3)
+  return(htwo3)
+}
+
+
+herit_allCOLL_BS<-lapply(traits, myheritCOLL_BS) %>% as.data.frame() %>% t
+rownames(herit_allCOLL_BS)<-traits
+herit_allCOLL_BS
+write.table(herit_allCOLL_BS,file=paste0(odir, "/phenos_modelled/heritabilitiesCOLLonly_BS_revised.txt"), quote=F)
 rm(WhichCOL)
 
 myheritFAM<-function(trait, fam){
@@ -238,7 +274,7 @@ phenos<-blups_all_traits
 
 # colnames(phenos)=lapply(colnames(phenos), function(x) substr(x, 0,(nchar(x)-5))) %>% unlist
 traits=colnames(phenos)
-
+traits
 ## calculate PC1 and PC2 only with collection
 ## do the same but put the progenies as supplementary individuals
 ## look whether plots look differently
@@ -250,8 +286,11 @@ whichFAMS<-lapply(families, function(x)grep(x,rownames(phenos))) %>% unlist
 res.pca <- PCA(phenos,  ind.sup =whichFAMS , ncp = 5, graph=F)
 pca_pheno<-data.frame(PC1=res.pca$ind$coord[,1] , row.names=rownames(res.pca$ind$coord))
 
+## loadins to calculate PC1 and PC2 from raw data
+loadings<-sweep(res.pca$var$coord,2,sqrt(res.pca$eig[1:ncol(res.pca$var$coord),1]),FUN="/")
 ## plot graph of variables
 res.pca$var$coord
+res.pca$var$
 MYcols<-c(rep(2, 4), rep(3, 8))
 fviz_pca_var(res.pca,  habillage= as.factor(MYcols),palette=c("darkblue", "red"))
 
@@ -446,6 +485,52 @@ rownames(coll[which(coll$PC2 == min(coll$PC2)),])
 coll[which(coll$PC2 == min(coll$PC2)),"PC2"]
 coll[which(coll$PC2 == min(coll$PC2)),"PC1"]
 rownames(phenos[which(phenos$PC1 == max(phenos$PC1) & rownames(phenos) %in% rownames(phenos)[WhichCOL]),])
+
+# calculate heritability of PCA axes
+phenos=readRDS(paste0(idir, "/phenos_ready_for_pred.rds"))
+IDs<-phenos$Name
+summary(phenos)
+rownames(loadings)<-lapply(rownames(loadings), function(x)substr(x, 1, nchar(x)-5))
+traits<-colnames(phenos )[5:16]
+phenos<-phenos[,rownames(loadings)]
+## use the really nice function sweep
+phenos_load<-lapply(colnames(loadings)[1:2], function(x) sweep(phenos,2, loadings[,x], "*" ) %>% rowSums ) %>% do.call(cbind,. ) %>% as.data.frame()
+colnames(phenos_load)<-c("Dim.1", "Dim.2")
+phenos_load$Name<-IDs
+myherit_BS<-function(trait){
+  data=phenos_load[,c("Name", trait)] %>% droplevels
+  mylm_sel3<-lmer(data=data, get(trait) ~ (1|Name) )
+  myvar3<-VarCorr(mylm_sel3,comp=c("Variance")) %>% as.data.frame()
+  genvar3<-myvar3[which(myvar3$grp=="Name"), "vcov"]
+  envvar3<-myvar3[which(myvar3$grp=="Name"), "vcov"]+ myvar3[which(myvar3$grp=="Residual"), "vcov"]
+  htwo3<- genvar3/envvar3
+  print(htwo3)
+  return(htwo3)
+  
+}
+herit_PC<-lapply(c("Dim.1", "Dim.2"), myherit_BS) %>% as.data.frame() %>% t
+rownames(herit_PC)<-c("Dim.1", "Dim.2")
+herit_PC
+write.table(herit_PC,file=paste0(odir, "/phenos_modelled/heritabilities_BS_PC1_PC2.txt"), quote=F)
+
+WhichCOL<-c(1:nrow(phenos_load))[-c(lapply(families, function(x) grep(x,phenos_load$Name))  %>% unlist)]
+length(WhichCOL)
+
+myheritCOLL_BS_PC<-function(trait){
+  data=phenos_load[WhichCOL,c("Name", trait)] %>% droplevels
+  mylm_sel3<-lmer(data=data, get(trait) ~ (1|Name) )
+  myvar3<-VarCorr(mylm_sel3,comp=c("Variance")) %>% as.data.frame()
+  genvar3<-myvar3[which(myvar3$grp=="Name"), "vcov"]
+  envvar3<-myvar3[which(myvar3$grp=="Name"), "vcov"]+ myvar3[which(myvar3$grp=="Residual"), "vcov"]
+  htwo3<- genvar3/envvar3
+  print(htwo3)
+  return(htwo3)
+}
+herit_COLL_PC<-lapply(c("Dim.1", "Dim.2"), myheritCOLL_BS_PC) %>% as.data.frame() %>% t
+rownames(herit_COLL_PC)<-c("Dim.1", "Dim.2")
+herit_COLL_PC
+write.table(herit_PC,file=paste0(odir, "/phenos_modelled/heritabilities_BS_COLL_PC1_PC2.txt"), quote=F)
+
 
 
 # Purge obsolete variables

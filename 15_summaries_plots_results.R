@@ -39,11 +39,16 @@ CC$trait<-factor(CC$trait, levels=c("ALD", "ANP", "APMax", "APMean", "Area",
 write.table(CC, file=paste0(odir, "/predictions/COLLtoCOLL/summaries_all.txt"), quote=F, sep="\t")
 
 ## plot barplot with 2 models in different colors
+
+CC<-read.table(paste0(odir, "/predictions/COLLtoCOLL/summaries_all.txt"), sep="\t", h=T)
+
+CC<-CC[which(CC$Model == "No clusters"), ] %>% droplevels
+
 pdf(file=paste0(odir, "/predictions/COLtoCOL_modelsAB_newPC12.pdf"), height=5, width=8)
-ggplot(CC,aes( y=accuracy, x=trait, fill=Model))+
+ggplot(CC,aes( y=accuracy, x=trait))+
   geom_bar(stat="identity",position=position_dodge()) +
   scale_fill_manual(values=c("grey40", "grey70")) +
-  labs(x="Trait", title="Predictions rrBLUP, 5-fold", y="Predictive ability")+
+  labs(x="Trait", title="Predictions rrBLUP, 5-fold", y="Accuracy")+
   theme_minimal() +
   theme(axis.text.x=element_text(angle = 45,  hjust = 1),
         strip.text.x = element_text(size = 10, face = "bold")) +
@@ -54,9 +59,12 @@ dev.off()
 
 ## test on ranking heritabilty vs. mean accuracies
 
-test<-read.table(paste0(odir, "/predictions/COLLtoCOLL/for_rank_test_h2_cor.txt"), h=T)
-wilcox.test(x=test$h2,y=test$cor, paired=T, conf.int=T)
-
+test<-read.table(paste0(odir, "/predictions/COLLtoCOLL/for_rank_test_h2_cor.txt"), h=T, sep="\t")
+test %>% head
+wilcox.test(x=test$h2_BS.coll,y=test$cor, paired=T, conf.int=T)
+wilcox.test(x=test$h2_BS.coll,y=test$h2_whole_pop, paired=T, conf.int=T)
+cor(test$cor,test$h2_BS)
+plot(test$cor~test$h2_BS)
 #############################
 ### COLL TO FAM scenarios ###
 ### NO CLUSTERING ###########
